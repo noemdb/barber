@@ -761,14 +761,92 @@ sobre el server real + Prisma/Neon.
 
 ---
 
+## 2026-08-20 · Cambio 17 — Timezone del negocio (§33), rate-limit y middleware edge
+
+### Objetivo
+
+- Aplicar la zona horaria del negocio (`BusinessSettings.timezone`) en los cálculos de agenda
+  en lugar de la zona del servidor (§33).
+- Limitar el uso del endpoint público de reservas (§30).
+- Proteger las rutas del dashboard en el edge, además del layout (§11).
+
+### Qué se hizo
+
+- **Timezone (§33)**:
+  - `lib/time.ts` nuevo: `getBusinessTimezone()` (cacheada), `zonedTimeToUtc` (conversión
+    wall-clock→instante con ajuste DST por dos pasadas), `zonedNowDate`, `addZonedDays`,
+    `zonedDayStartUtc`/`zonedDayEndUtc`.
+  - `GET /api/appointments`: `date`/`from`/`to` se interpretan como días locales del negocio y se
+    convierten a rangos UTC. La respuesta ahora es `{ data: { appointments, timezone } }`.
+  - Dashboard: límites del día, semana y agrupado del gráfico de 7 días usan la zona del negocio;
+    los formatos de fecha/hora incluyen `timeZone`.
+  - Cliente: `lib/format.ts` gana `tzFormat` y `zonedDate`; la página de citas y el dialog de
+    próximas citas formatean con la zona devuelta por la API y "Ver día" usa el día local del
+    negocio.
+- **Rate-limit**:
+  - `lib/rate-limit.ts` nuevo: ventana fija en memoria por clave (`rateLimit`, `sweepRateLimit`,
+    `getClientIp`).
+  - `POST /api/booking`: 10 reservas/min por IP y 3/hora por email; exceso → 429
+    `RATE_LIMITED` (nuevo código en `lib/errors.ts`). El límite por IP se evalúa antes de parsear
+    el body.
+  - Nota: al ser en memoria, en Vercel el límite aplica por instancia serverless, no global.
+- **Middleware edge**:
+  - `middleware.ts` nuevo: verifica el JWT (`jose`) y protege `/dashboard`, `/appointments`,
+    `/clients`, `/barbers`, `/services`, `/settings` y subrutas; sin sesión → redirect `/login`;
+    rol CLIENT → redirect `/`.
+
+### Archivos
+
+| Archivo | Acción |
+| --- | --- |
+| `lib/time.ts` | nuevo: helpers de zona horaria |
+| `lib/rate-limit.ts` | nuevo: limiter en memoria |
+| `lib/errors.ts` | +`RATE_LIMITED` |
+| `app/api/booking/route.ts` | límites por IP y email |
+| `app/api/appointments/route.ts` | filtro por zona del negocio + shape `{appointments, timezone}` |
+| `app/(dashboard)/dashboard/page.tsx` | límites de día/semana y formatos en la zona del negocio |
+| `app/(dashboard)/appointments/page.tsx` | consume nuevo shape + formatea con la zona |
+| `components/upcoming-appointments-dialog.tsx` | idem + "Ver día" con día local del negocio |
+| `lib/format.ts` | +`tzFormat`, `zonedDate` |
+| `middleware.ts` | nuevo: protección edge por rol |
+| `tests/api/flows.test.ts` | adaptado al shape `{appointments, timezone}` |
+
+### Decisión de diseño
+
+- Los días de agenda son "días de negocio": las fechas que el staff selecciona se interpretan en
+  la zona del negocio, no en la del servidor ni en la del navegador.
+- El rate-limit en memoria es deliberadamente simple; una versión distribuida (Redis/DB) queda
+  como mejora si el tráfico lo exige.
+
+### Verificación
+
+- `npm run typecheck` y `npm run lint`: OK. `npm run build`: OK (middleware compilado).
+- `npm test`: 17/17. `npm run test:integration`: 16/16.
+- Manual:
+  - 12 POST seguidos a `/api/booking` → 6× 400 + 6× 429 `RATE_LIMITED` (los 6 primeros
+    consumieron el cupo restante de la IP tras el test de integración).
+  - `/dashboard` y `/appointments` sin sesión → 307 a `/login`; landing → 200.
+  - Cita a `2026-08-21T00:00:00Z` (= 20:00 Caracas del 20) aparece en el rango del día 20 y no en
+    el 21.
+  - `GET /api/appointments` devuelve `data.timezone = "America/Caracas"`.
+
+### Riesgos / regresión
+
+- Cambio de shape en `GET /api/appointments` (ahora `{ appointments, timezone }`): actualizados
+  página, dialog y tests; cualquier consumidor externo debería ajustarse.
+- Rate-limit en memoria: por instancia; aceptable para un negocio pequeño.
+- Middleware duplica la comprobación de sesión (layout + edge) con la misma clave JWT.
+
+---
+
 ## Deuda técnica pendiente (orden sugerido)
 
 1. API de pagos (`Payment` en schema, sin endpoint/UI) + registro de cobro atómico (`$transaction`,
    §32).
-2. Timezone del negocio en cálculos de agenda (§33).
-3. Middleware/proxy de protección de rutas en el edge (hoy las páginas se protegen vía layout).
-4. E2E en browser (Playwright) de los flujos críticos (hoy cubiertos a nivel API).
-5. Portal del cliente ("mis citas" para usuarios CLIENT) — fuera del alcance del spec actual.
+2. Middleware de protección con más matices (p.ej. rutas de portal del cliente) — el actual
+   protege las del staff.
+3. E2E en browser (Playwright) de los flujos críticos (hoy cubiertos a nivel API).
+4. Portal del cliente ("mis citas" para usuarios CLIENT) — fuera del alcance del spec actual.
 
 ---
 
