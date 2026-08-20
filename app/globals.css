@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: var(--font-oswald);
+  --font-sans: var(--font-manrope);
+
+  --color-gold: #c8a45c;
+  --color-gold-light: #ddc692;
+  --color-gold-dark: #9c7c3f;
+
+  --animate-marquee: marquee 30s linear infinite;
+  --animate-float: float 7s ease-in-out infinite;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+:root { --sidebar: 252px; }
+html { scroll-behavior: smooth; scroll-padding-top: 92px; }
+html, body { min-height: 100%; }
+body { background: #f7f7f8; color: #18181b; font-family: var(--font-sans); }
+button, input, select, textarea { outline: none; }
+* { scrollbar-width: thin; scrollbar-color: #d4d4d8 transparent; }

@@ -1,0 +1,171 @@
+"use client";
+import { useEffect, useState } from "react";
+import { CalendarClock, RefreshCw, X } from "lucide-react";
+
+type UpcomingAppointment = {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  priceCents: number;
+  client: { id: string; name: string; phone: string | null };
+  barber: { id: string; name: string };
+  service: { id: string; name: string };
+};
+
+const labels: Record<string, string> = {
+  PENDING: "Pendiente",
+  CONFIRMED: "Confirmada",
+  COMPLETED: "Completada",
+  CANCELLED: "Cancelada",
+  NO_SHOW: "No asistió",
+};
+const classes: Record<string, string> = {
+  PENDING: "bg-amber-50 text-amber-700",
+  CONFIRMED: "bg-emerald-50 text-emerald-700",
+  COMPLETED: "bg-indigo-50 text-indigo-700",
+  CANCELLED: "bg-red-50 text-red-700",
+  NO_SHOW: "bg-zinc-100 text-zinc-600",
+};
+
+const timeFmt = new Intl.DateTimeFormat("es-VE", { hour: "2-digit", minute: "2-digit" });
+const dayFmt = new Intl.DateTimeFormat("es-VE", { weekday: "long", day: "2-digit", month: "long" });
+
+export default function UpcomingAppointmentsDialog({
+  onClose,
+  onGoToDay,
+}: {
+  onClose: () => void;
+  onGoToDay: (iso: string) => void;
+}) {
+  const [items, setItems] = useState<UpcomingAppointment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/appointments?upcoming=1")
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return;
+        setItems(json.success ? json.data : []);
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  function refresh() {
+    setLoading(true);
+    fetch("/api/appointments?upcoming=1")
+      .then((r) => r.json())
+      .then((json) => {
+        setItems(json.success ? json.data : []);
+        setLoading(false);
+      });
+  }
+
+  const pending = items.filter((a) => a.status === "PENDING").length;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onMouseDown={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Próximas citas"
+        onMouseDown={(e) => e.stopPropagation()}
+        className="flex w-full max-w-3xl max-h-[85vh] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-zinc-100 p-5">
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-semibold">
+              <CalendarClock size={19} className="text-zinc-500" /> Próximas citas
+            </h2>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Citas pendientes y confirmadas para los próximos días.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+          >
+            <X size={17} />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3">
+          <div className="text-xs text-zinc-500">
+            {loading
+              ? "Cargando..."
+              : `${items.length} cita${items.length === 1 ? "" : "s"} · ${pending} pendiente${pending === 1 ? "" : "s"}`}
+          </div>
+          <button
+            onClick={refresh}
+            className="h-8 px-3 rounded-lg border border-zinc-200 text-xs font-semibold inline-flex items-center gap-1.5 hover:bg-zinc-50"
+          >
+            <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Actualizar
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {!loading && items.length === 0 && (
+            <div className="p-12 text-center text-sm text-zinc-500">No hay citas pendientes o confirmadas próximas.</div>
+          )}
+          <div className="divide-y divide-zinc-100">
+            {items.map((a) => {
+              const start = new Date(a.startsAt);
+              return (
+                <div key={a.id} className="flex items-center gap-4 px-5 py-4">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-zinc-950 text-white">
+                    <div className="text-center">
+                      <div className="text-sm font-bold leading-none">{String(start.getDate()).padStart(2, "0")}</div>
+                      <div className="text-[9px] uppercase tracking-wide text-zinc-400">
+                        {start.toLocaleDateString("es-VE", { month: "short" })}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold">
+                      <span>{timeFmt.format(start)}</span>
+                      <span className="text-zinc-300">·</span>
+                      <span className="truncate">{a.client.name}</span>
+                    </div>
+                    <div className="mt-0.5 text-xs capitalize text-zinc-500">
+                      {dayFmt.format(start)} · {a.service.name} · {a.barber.name}
+                    </div>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${classes[a.status]}`}>
+                    {labels[a.status]}
+                  </span>
+                  <button onClick={() => onGoToDay(a.startsAt)} className="shrink-0 text-xs font-semibold hover:underline">
+                    Ver día
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex justify-end border-t border-zinc-100 p-4">
+          <button onClick={onClose} className="h-10 px-4 rounded-xl bg-zinc-950 text-white text-sm font-semibold">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

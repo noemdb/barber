@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  BARBER
+  CLIENT
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(ADMIN)
+  active       Boolean  @default(true)
+  barber       Barber?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Barber {
+  id           String        @id @default(cuid())
+  name         String
+  phone        String?
+  email        String?
+  specialty    String?
+  active       Boolean       @default(true)
+  avatar       String?
+  userId       String?       @unique
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Client {
+  id           String        @id @default(cuid())
+  name         String
+  phone        String?
+  email        String?
+  notes        String?
+  active       Boolean       @default(true)
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([name])
+  @@index([phone])
+}
+
+model Service {
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  durationMin  Int           @default(30)
+  priceCents   Int
+  active       Boolean       @default(true)
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Appointment {
+  id            String            @id @default(cuid())
+  startsAt      DateTime
+  endsAt        DateTime
+  status        AppointmentStatus  @default(PENDING)
+  notes         String?
+  priceCents    Int
+  clientId      String
+  barberId      String
+  serviceId     String
+  client        Client            @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  barber        Barber            @relation(fields: [barberId], references: [id], onDelete: Restrict)
+  service       Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  payment       Payment?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([startsAt])
+  @@index([status])
+  @@index([barberId, startsAt])
+  @@index([clientId, startsAt])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  appointmentId String        @unique
+  amountCents   Int
+  method        PaymentMethod
+  status        PaymentStatus @default(PAID)
+  paidAt       DateTime?
+  appointment  Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model BusinessSettings {
+  id              String   @id @default(cuid())
+  businessName    String   @default("Barber Shop Central")
+  phone           String?
+  email           String?
+  address         String?
+  currency        String   @default("USD")
+  timezone        String   @default("America/Caracas")
+  appointmentSlot Int      @default(30)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
