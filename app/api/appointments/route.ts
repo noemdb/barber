@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/permissions";
 import { withApi } from "@/lib/api";
 import { appointmentCreateSchema } from "@/lib/validations";
 import { createAppointment, type AppointmentRepository } from "@/lib/services/appointment-service";
+import { getBusinessTimezone, zonedDayStartUtc, zonedDayEndUtc } from "@/lib/time";
 import type { Prisma } from "@/app/generated/prisma/client";
 
 type CreatedAppointment = Awaited<ReturnType<typeof prisma.appointment.create>>;
@@ -30,22 +31,19 @@ export async function GET(request: Request) {
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
     const upcoming = url.searchParams.get("upcoming") === "1";
+    const timezone = await getBusinessTimezone();
     const where: Prisma.AppointmentWhereInput = {};
 
     const range: { gte?: Date; lt?: Date } = {};
     if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      range.gte = new Date(`${date}T00:00:00`);
-      const end = new Date(range.gte);
-      end.setDate(end.getDate() + 1);
-      range.lt = end;
+      range.gte = zonedDayStartUtc(date, timezone);
+      range.lt = zonedDayEndUtc(date, timezone);
     }
     if (from && /^\d{4}-\d{2}-\d{2}$/.test(from)) {
-      range.gte = new Date(`${from}T00:00:00`);
+      range.gte = zonedDayStartUtc(from, timezone);
     }
     if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) {
-      const end = new Date(`${to}T00:00:00`);
-      end.setDate(end.getDate() + 1);
-      range.lt = end;
+      range.lt = zonedDayEndUtc(to, timezone);
     }
     if (range.gte || range.lt) where.startsAt = range;
 
@@ -53,13 +51,13 @@ export async function GET(request: Request) {
       where.status = { in: ["PENDING", "CONFIRMED"] };
       where.startsAt = { gte: new Date() };
     }
-    const data = await prisma.appointment.findMany({
+    const appointments = await prisma.appointment.findMany({
       where,
       include: { client: true, barber: true, service: true, payment: true },
       orderBy: { startsAt: "asc" },
       take: upcoming ? 8 : undefined,
     });
-    return { data };
+    return { data: { appointments, timezone } };
   });
 }
 

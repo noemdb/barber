@@ -1,15 +1,18 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { money, initials } from "@/lib/format";
+import { getBusinessTimezone, zonedNowDate, zonedDayStartUtc, zonedDayEndUtc, addZonedDays } from "@/lib/time";
 import { ArrowUpRight, CalendarDays, CircleDollarSign, Scissors, Users, Clock3 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const now = new Date();
-  const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1);
-  const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6); weekStart.setHours(0, 0, 0, 0);
+  const timezone = await getBusinessTimezone();
+  const todayStr = zonedNowDate(now.getTime(), timezone);
+  const dayStart = zonedDayStartUtc(todayStr, timezone);
+  const dayEnd = zonedDayEndUtc(todayStr, timezone);
+  const weekStart = zonedDayStartUtc(addZonedDays(todayStr, -6), timezone);
 
   const [appointments, clientsCount, barbersCount, servicesCount, settings, revenue, recentPayments, soldByService] =
     await Promise.all([
@@ -30,21 +33,17 @@ export default async function DashboardPage() {
   const nameById = new Map(serviceNames.map((s) => [s.id, s.name]));
 
   const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(now);
-    d.setDate(now.getDate() - 6 + i);
-    d.setHours(0, 0, 0, 0);
+    const dateStr = addZonedDays(todayStr, i - 6);
     return {
-      label: new Intl.DateTimeFormat("es-VE", { weekday: "narrow" }).format(d).toUpperCase(),
-      dayKey: d.toDateString(),
+      label: new Intl.DateTimeFormat("es-VE", { weekday: "narrow", timeZone: timezone }).format(zonedDayStartUtc(dateStr, timezone)).toUpperCase(),
+      dayKey: dateStr,
       amount: 0,
     };
   });
   const dayIndex = new Map(days.map((d, i) => [d.dayKey, i]));
   for (const payment of recentPayments) {
     if (!payment.paidAt) continue;
-    const day = new Date(payment.paidAt);
-    day.setHours(0, 0, 0, 0);
-    const idx = dayIndex.get(day.toDateString());
+    const idx = dayIndex.get(zonedNowDate(payment.paidAt.getTime(), timezone));
     if (idx !== undefined) days[idx].amount += payment.amountCents;
   }
   const maxAmount = Math.max(...days.map((d) => d.amount), 1);
@@ -74,7 +73,7 @@ export default async function DashboardPage() {
           <div className="px-5 py-4 flex items-start justify-between border-b border-zinc-100">
             <div>
               <h2 className="font-semibold">Citas de hoy</h2>
-              <p className="text-xs text-zinc-500 mt-1">{new Intl.DateTimeFormat("es-VE", { dateStyle: "full" }).format(now)}</p>
+              <p className="text-xs text-zinc-500 mt-1">{new Intl.DateTimeFormat("es-VE", { dateStyle: "full", timeZone: timezone }).format(now)}</p>
             </div>
             <Link href="/appointments" className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 flex gap-1 items-center">Ver calendario <ArrowUpRight size={14} /></Link>
           </div>
@@ -93,7 +92,7 @@ export default async function DashboardPage() {
               <tbody>
                 {appointments.map((a) => (
                   <tr key={a.id} className="border-t border-zinc-100 text-xs">
-                    <td className="px-5 py-3 font-semibold text-zinc-600">{new Intl.DateTimeFormat("es-VE", { hour: "2-digit", minute: "2-digit" }).format(a.startsAt)}</td>
+                    <td className="px-5 py-3 font-semibold text-zinc-600">{new Intl.DateTimeFormat("es-VE", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(a.startsAt)}</td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
                         <div className="h-7 w-7 rounded-full bg-zinc-100 grid place-items-center text-[9px] font-semibold">{initials(a.client.name)}</div>
@@ -124,7 +123,7 @@ export default async function DashboardPage() {
             <div className="mt-6">
               <div className="h-14 w-14 rounded-2xl bg-zinc-100 grid place-items-center font-bold text-sm">{initials(next.client.name)}</div>
               <h3 className="mt-3 font-semibold">{next.client.name}</h3>
-              <p className="text-xs text-zinc-500 mt-1">{new Intl.DateTimeFormat("es-VE", { hour: "2-digit", minute: "2-digit" }).format(next.startsAt)} · {next.service.name}</p>
+              <p className="text-xs text-zinc-500 mt-1">{new Intl.DateTimeFormat("es-VE", { hour: "2-digit", minute: "2-digit", timeZone: timezone }).format(next.startsAt)} · {next.service.name}</p>
               <div className="mt-5 border-t border-zinc-100 pt-4 space-y-3 text-xs">
                 <div className="flex justify-between"><span className="text-zinc-500">Barbero</span><strong>{next.barber.name}</strong></div>
                 <div className="flex justify-between"><span className="text-zinc-500">Duración</span><strong>{Math.round((next.endsAt.getTime() - next.startsAt.getTime()) / 60000)} min</strong></div>

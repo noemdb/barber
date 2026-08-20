@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { CalendarClock, RefreshCw, X } from "lucide-react";
+import { tzFormat, zonedDate } from "@/lib/format";
 
 type UpcomingAppointment = {
   id: string;
@@ -28,9 +29,6 @@ const classes: Record<string, string> = {
   NO_SHOW: "bg-zinc-100 text-zinc-600",
 };
 
-const timeFmt = new Intl.DateTimeFormat("es-VE", { hour: "2-digit", minute: "2-digit" });
-const dayFmt = new Intl.DateTimeFormat("es-VE", { weekday: "long", day: "2-digit", month: "long" });
-
 export default function UpcomingAppointmentsDialog({
   onClose,
   onGoToDay,
@@ -39,6 +37,7 @@ export default function UpcomingAppointmentsDialog({
   onGoToDay: (iso: string) => void;
 }) {
   const [items, setItems] = useState<UpcomingAppointment[]>([]);
+  const [timezone, setTimezone] = useState("America/Caracas");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,7 +46,10 @@ export default function UpcomingAppointmentsDialog({
       .then((r) => r.json())
       .then((json) => {
         if (cancelled) return;
-        setItems(json.success ? json.data : []);
+        if (json.success) {
+          setItems(json.data.appointments);
+          setTimezone(json.data.timezone);
+        }
         setLoading(false);
       });
     return () => {
@@ -72,7 +74,10 @@ export default function UpcomingAppointmentsDialog({
     fetch("/api/appointments?upcoming=1")
       .then((r) => r.json())
       .then((json) => {
-        setItems(json.success ? json.data : []);
+        if (json.success) {
+          setItems(json.data.appointments);
+          setTimezone(json.data.timezone);
+        }
         setLoading(false);
       });
   }
@@ -127,31 +132,33 @@ export default function UpcomingAppointmentsDialog({
           )}
           <div className="divide-y divide-zinc-100">
             {items.map((a) => {
-              const start = new Date(a.startsAt);
               return (
                 <div key={a.id} className="flex items-center gap-4 px-5 py-4">
                   <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-zinc-950 text-white">
                     <div className="text-center">
-                      <div className="text-sm font-bold leading-none">{String(start.getDate()).padStart(2, "0")}</div>
+                      <div className="text-sm font-bold leading-none">{tzFormat(a.startsAt, timezone, { day: "2-digit" })}</div>
                       <div className="text-[9px] uppercase tracking-wide text-zinc-400">
-                        {start.toLocaleDateString("es-VE", { month: "short" })}
+                        {tzFormat(a.startsAt, timezone, { month: "short" })}
                       </div>
                     </div>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold">
-                      <span>{timeFmt.format(start)}</span>
+                      <span>{tzFormat(a.startsAt, timezone, { hour: "2-digit", minute: "2-digit" })}</span>
                       <span className="text-zinc-300">·</span>
                       <span className="truncate">{a.client.name}</span>
                     </div>
                     <div className="mt-0.5 text-xs capitalize text-zinc-500">
-                      {dayFmt.format(start)} · {a.service.name} · {a.barber.name}
+                      {tzFormat(a.startsAt, timezone, { weekday: "long", day: "2-digit", month: "long" })} · {a.service.name} · {a.barber.name}
                     </div>
                   </div>
                   <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${classes[a.status]}`}>
                     {labels[a.status]}
                   </span>
-                  <button onClick={() => onGoToDay(a.startsAt)} className="shrink-0 text-xs font-semibold hover:underline">
+                  <button
+                    onClick={() => onGoToDay(zonedDate(a.startsAt, timezone))}
+                    className="shrink-0 text-xs font-semibold hover:underline"
+                  >
                     Ver día
                   </button>
                 </div>

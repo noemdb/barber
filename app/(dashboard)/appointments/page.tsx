@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, CalendarDays, Plus, RefreshCw } from "lucide-react";
-import { money, initials } from "@/lib/format";
+import { money, initials, tzFormat } from "@/lib/format";
 import UpcomingAppointmentsDialog from "@/components/upcoming-appointments-dialog";
 
 type Appointment = {
@@ -15,6 +15,7 @@ type Appointment = {
   barber: { id: string; name: string };
   service: { id: string; name: string };
 };
+type AppointmentsData = { appointments: Appointment[]; timezone: string };
 type SelectOption = { id: string; name: string; priceCents?: number };
 
 const labels: Record<string, string> = {
@@ -43,6 +44,7 @@ const addDays = (iso: string, days: number) => {
 
 export default function AppointmentsPage() {
   const [items, setItems] = useState<Appointment[]>([]);
+  const [timezone, setTimezone] = useState("America/Caracas");
   const [upcomingCount, setUpcomingCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState(today);
@@ -53,14 +55,18 @@ export default function AppointmentsPage() {
   async function load() {
     const r = await fetch(`/api/appointments?from=${from}&to=${to}`);
     const json = await r.json();
-    setItems(json.success ? json.data : []);
+    if (json.success) {
+      const data = json.data as AppointmentsData;
+      setItems(data.appointments);
+      setTimezone(data.timezone);
+    }
     setLoading(false);
   }
 
   async function loadUpcomingCount() {
     const r = await fetch("/api/appointments?upcoming=1");
     const json = await r.json();
-    setUpcomingCount(json.success ? json.data.length : 0);
+    setUpcomingCount(json.success ? (json.data as AppointmentsData).appointments.length : 0);
   }
 
   useEffect(() => {
@@ -69,13 +75,17 @@ export default function AppointmentsPage() {
       .then((r) => r.json())
       .then((json) => {
         if (cancelled) return;
-        setUpcomingCount(json.success ? json.data.length : 0);
+        setUpcomingCount(json.success ? (json.data as AppointmentsData).appointments.length : 0);
       });
     fetch(`/api/appointments?from=${from}&to=${to}`)
       .then((r) => r.json())
       .then((json) => {
         if (cancelled) return;
-        setItems(json.success ? json.data : []);
+        if (json.success) {
+          const data = json.data as AppointmentsData;
+          setItems(data.appointments);
+          setTimezone(data.timezone);
+        }
         setLoading(false);
       });
     return () => {
@@ -94,7 +104,7 @@ export default function AppointmentsPage() {
   }
 
   const goToDay = (iso: string) => {
-    const day = toIso(new Date(iso));
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : toIso(new Date(iso));
     setFrom(day);
     setTo(day);
     setShowUpcoming(false);
@@ -174,12 +184,10 @@ export default function AppointmentsPage() {
               {items.map((a) => (
                 <tr className="border-t border-zinc-100 text-xs" key={a.id}>
                   <td className="px-5 py-3 whitespace-nowrap">
-                    {new Intl.DateTimeFormat("es-VE", { weekday: "short", day: "2-digit", month: "short" }).format(
-                      new Date(a.startsAt),
-                    )}
+                    {tzFormat(a.startsAt, timezone, { weekday: "short", day: "2-digit", month: "short" })}
                   </td>
                   <td className="px-5 py-3 font-semibold">
-                    {new Intl.DateTimeFormat("es-VE", { hour: "2-digit", minute: "2-digit" }).format(new Date(a.startsAt))}
+                    {tzFormat(a.startsAt, timezone, { hour: "2-digit", minute: "2-digit" })}
                   </td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">

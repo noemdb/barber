@@ -161,7 +161,7 @@ describe("Reserva pública y gestión de citas", () => {
     const day = localDay(startsAt);
     const res = await api.get(`/api/appointments?from=${day}&to=${day}`);
     expect(res.status).toBe(200);
-    const ids = (res.json?.data as Array<{ id: string }>).map((a) => a.id);
+    const ids = ((res.json?.data as { appointments: Array<{ id: string }> }).appointments).map((a) => a.id);
     expect(ids).toContain(created.appointmentIds[0]);
   });
 
