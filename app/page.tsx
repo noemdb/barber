@@ -122,13 +122,13 @@ export default async function Home() {
           </div>
 
           <Reveal delay={120} className="relative hidden lg:block">
-            <div className="relative ml-auto aspect-[4/5] w-full max-w-md overflow-hidden rounded-[2rem] border border-white/10">
+            <div className="relative ml-auto aspect-square w-full max-w-md overflow-hidden rounded-full border border-white/10">
               <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 via-zinc-900 to-black" />
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(200,164,92,0.28),transparent_48%),radial-gradient(circle_at_78%_84%,rgba(200,164,92,0.16),transparent_52%)]" />
               <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent_0px,transparent_139px,rgba(255,255,255,0.08)_140px)]" />
               <svg
                 className="absolute inset-0 h-full w-full"
-                viewBox="0 0 420 525"
+                viewBox="0 0 420 420"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
                 preserveAspectRatio="xMidYMid meet"
@@ -180,6 +180,7 @@ export default async function Home() {
                   </filter>
                 </defs>
 
+                <g transform="translate(42 0) scale(0.8)">
                 <ellipse cx="210" cy="120" rx="120" ry="180" fill="url(#heroSpot)" />
 
                 <circle cx="210" cy="222" r="135" fill="url(#heroMirror)" filter="url(#heroSoft)" />
@@ -327,6 +328,7 @@ export default async function Home() {
                   <line x1="302" y1="437" x2="302" y2="444" />
                   <line x1="306" y1="437" x2="306" y2="444" />
                   <line x1="310" y1="437" x2="310" y2="444" />
+                </g>
                 </g>
               </svg>
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_52%,rgba(0,0,0,0.6)_100%)]" />
