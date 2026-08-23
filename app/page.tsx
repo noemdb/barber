@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -126,226 +127,30 @@ export default async function Home() {
               <div className="pointer-events-none absolute -inset-x-12 -inset-y-10 bg-[radial-gradient(circle_at_50%_45%,rgba(200,164,92,0.22),transparent_62%)] blur-2xl" />
               <div className="pointer-events-none absolute -inset-x-6 -inset-y-4 rounded-[3rem] border border-gold/15" />
               <div
-                className="relative ml-auto aspect-[4/5] w-full max-w-md overflow-hidden rounded-[2rem] border border-white/5 shadow-[0_0_90px_rgba(200,164,92,0.12),0_30px_80px_-20px_rgba(0,0,0,0.7)]"
+                className="relative ml-auto aspect-[4/5] w-full max-w-md"
+              >
+                <div
+                  className="absolute inset-0 overflow-hidden rounded-[2rem] border border-white/5 shadow-[0_0_90px_rgba(200,164,92,0.12),0_30px_80px_-20px_rgba(0,0,0,0.7)]"
                 style={{
                   maskImage:
                     "radial-gradient(ellipse 112% 100% at 50% 46%, black 62%, transparent 98%)",
                   WebkitMaskImage:
                     "radial-gradient(ellipse 112% 100% at 50% 46%, black 62%, transparent 98%)",
                 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-zinc-800/90 via-zinc-900 to-black" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(200,164,92,0.28),transparent_48%),radial-gradient(circle_at_78%_84%,rgba(200,164,92,0.16),transparent_52%)]" />
-              <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent_0px,transparent_139px,rgba(255,255,255,0.08)_140px)]" />
-              <svg
-                className="absolute inset-0 h-full w-full"
-                viewBox="0 0 420 525"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                preserveAspectRatio="xMidYMid meet"
-              >
-                <defs>
-                  <linearGradient id="heroLeather" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor="#3a3a3a" />
-                    <stop offset="0.55" stopColor="#161616" />
-                    <stop offset="1" stopColor="#050505" />
-                  </linearGradient>
-                  <linearGradient id="heroLeatherLight" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor="#4a4a4a" />
-                    <stop offset="1" stopColor="#1a1a1a" />
-                  </linearGradient>
-                  <linearGradient id="heroMetal" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0" stopColor="#8a6d2f" />
-                    <stop offset="0.5" stopColor="#e8c878" />
-                    <stop offset="1" stopColor="#6f5423" />
-                  </linearGradient>
-                  <linearGradient id="heroMetalShine" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor="#f4e3b2" />
-                    <stop offset="0.5" stopColor="#c9a24b" />
-                    <stop offset="1" stopColor="#7a5f26" />
-                  </linearGradient>
-                  <linearGradient id="heroWood" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor="#3a2d1c" />
-                    <stop offset="1" stopColor="#1c1409" />
-                  </linearGradient>
-                  <radialGradient id="heroMirror" cx="0.5" cy="0.45" r="0.55">
-                    <stop offset="0" stopColor="rgba(200,164,92,0.28)" />
-                    <stop offset="0.55" stopColor="rgba(200,164,92,0.07)" />
-                    <stop offset="1" stopColor="transparent" />
-                  </radialGradient>
-                  <radialGradient id="heroSpot" cx="0.5" cy="0.28" r="0.55">
-                    <stop offset="0" stopColor="rgba(255,255,255,0.12)" />
-                    <stop offset="1" stopColor="transparent" />
-                  </radialGradient>
-                  <linearGradient id="heroBeam" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor="rgba(200,164,92,0)" />
-                    <stop offset="0.35" stopColor="rgba(200,164,92,0.1)" />
-                    <stop offset="0.7" stopColor="rgba(200,164,92,0.04)" />
-                    <stop offset="1" stopColor="rgba(200,164,92,0)" />
-                  </linearGradient>
-                  <filter id="heroSoft" x="-40%" y="-40%" width="180%" height="180%">
-                    <feGaussianBlur stdDeviation="8" />
-                  </filter>
-                  <filter id="heroBlur" x="-60%" y="-60%" width="220%" height="220%">
-                    <feGaussianBlur stdDeviation="3" />
-                  </filter>
-                </defs>
+                >
+                <Image
+                  src="/image/000000000d6081f68d1ea23de4944a97.png"
+                  alt="Barbería — interior del local"
+                  className="absolute inset-0 object-cover rounded-[2rem]"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 28rem"
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-zinc-800/35 via-zinc-900/25 to-black/45" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(200,164,92,0.28),transparent_48%),radial-gradient(circle_at_78%_84%,rgba(200,164,92,0.16),transparent_52%)]" />
+                <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent_0px,transparent_139px,rgba(255,255,255,0.08)_140px)]" />
+                </div>
 
-                <ellipse cx="210" cy="120" rx="120" ry="180" fill="url(#heroSpot)" />
-
-                <circle cx="210" cy="222" r="118" fill="none" stroke="rgba(200,164,92,0.55)" strokeWidth="1" />
-                <circle cx="210" cy="222" r="112" fill="none" stroke="rgba(200,164,92,0.28)" strokeWidth="1" />
-                <circle cx="210" cy="222" r="135" fill="url(#heroMirror)" filter="url(#heroSoft)" />
-                <ellipse cx="210" cy="222" rx="104" ry="132" fill="rgba(18,20,24,0.5)" />
-                <ellipse cx="210" cy="222" rx="104" ry="132" stroke="url(#heroMetalShine)" strokeWidth="5" />
-                <ellipse cx="210" cy="222" rx="96" ry="124" fill="url(#heroMirror)" />
-                <path d="M132 304 C150 242 192 212 252 200" stroke="rgba(255,255,255,0.08)" strokeWidth="16" strokeLinecap="round" filter="url(#heroBlur)" />
-
-                <polygon points="152,0 268,0 336,330 84,330" fill="url(#heroBeam)" />
-
-                <g fill="rgba(224,189,106,0.5)">
-                  <circle cx="150" cy="118" r="1.4" />
-                  <circle cx="252" cy="148" r="1" />
-                  <circle cx="180" cy="192" r="1.6" />
-                  <circle cx="266" cy="214" r="1.1" />
-                  <circle cx="138" cy="242" r="0.9" />
-                  <circle cx="230" cy="272" r="1.3" />
-                  <circle cx="166" cy="302" r="1" />
-                  <circle cx="282" cy="120" r="0.8" />
-                </g>
-                <g fill="rgba(224,189,106,0.22)" filter="url(#heroBlur)">
-                  <circle cx="200" cy="138" r="6" />
-                  <circle cx="258" cy="232" r="7" />
-                  <circle cx="148" cy="210" r="5" />
-                </g>
-
-                <rect x="0" y="440" width="420" height="85" fill="rgba(0,0,0,0.38)" />
-                <path d="M0 440 H420" stroke="rgba(200,164,92,0.22)" strokeWidth="1" />
-                <ellipse cx="210" cy="462" rx="150" ry="16" fill="rgba(200,164,92,0.07)" filter="url(#heroSoft)" />
-
-                <path d="M34 252 L40 240 L46 252 Z" fill="url(#heroMetal)" />
-                <path d="M98 252 L104 240 L110 252 Z" fill="url(#heroMetal)" />
-                <rect x="30" y="250" width="112" height="6" rx="2" fill="url(#heroWood)" />
-                <path d="M30 250 H142" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
-                <rect x="40" y="206" width="20" height="44" rx="6" fill="#181a1e" />
-                <path d="M40 216 H60" stroke="rgba(224,189,106,0.35)" strokeWidth="1.5" />
-                <rect x="44" y="201" width="12" height="8" rx="2" fill="url(#heroMetal)" />
-                <rect x="44" y="222" width="10" height="14" rx="1" fill="rgba(224,189,106,0.25)" />
-                <rect x="72" y="218" width="16" height="32" rx="5" fill="#6a4318" />
-                <path d="M72 228 H88" stroke="rgba(255,255,255,0.22)" strokeWidth="1.2" />
-                <rect x="75" y="214" width="10" height="7" rx="2" fill="url(#heroMetal)" />
-                <rect x="76" y="234" width="8" height="9" rx="1" fill="rgba(255,255,255,0.18)" />
-                <rect x="106" y="238" width="28" height="13" rx="4" fill="#232327" />
-                <rect x="110" y="231" width="20" height="9" rx="3.5" fill="#2c2c31" />
-                <path d="M110 236 H130" stroke="rgba(224,189,106,0.5)" strokeWidth="1" />
-
-                <path d="M334 418 C334 430 344 442 352 444 H376 C384 442 394 430 394 418 Z" fill="#1d2127" />
-                <path d="M334 418 C334 406 344 402 364 402 C384 402 394 406 394 418 C394 430 384 434 364 434 C344 434 334 430 334 418 Z" fill="#262b33" />
-                <path d="M334 418 H394" stroke="url(#heroMetal)" strokeWidth="1.4" />
-                <path d="M360 418 C354 382 350 354 356 324 C364 344 366 382 368 418 Z" fill="#2e4030" />
-                <path d="M364 418 C370 384 380 358 396 336 C386 358 376 390 370 418 Z" fill="#283828" />
-                <path d="M356 418 C346 390 332 366 316 358 C330 372 346 396 352 418 Z" fill="#354735" />
-                <path d="M360 418 C358 396 356 380 360 360" stroke="rgba(224,189,106,0.22)" strokeWidth="1" />
-
-                <ellipse cx="210" cy="447" rx="90" ry="10" fill="rgba(0,0,0,0.65)" filter="url(#heroSoft)" />
-
-                <ellipse cx="210" cy="452" rx="96" ry="14" fill="url(#heroMetal)" />
-                <ellipse cx="210" cy="449" rx="96" ry="14" fill="rgba(0,0,0,0.3)" />
-                <ellipse cx="210" cy="447" rx="62" ry="9" fill="#1a1408" />
-                <ellipse cx="210" cy="446" rx="62" ry="9" fill="url(#heroMetal)" opacity="0.85" />
-                <ellipse cx="210" cy="443" rx="34" ry="5" fill="url(#heroMetalShine)" opacity="0.9" />
-
-                <path d="M196 302 L188 442 H232 L224 302 Z" fill="url(#heroMetal)" />
-                <path d="M201 302 L195 442" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" opacity="0.55" />
-                <rect x="192" y="360" width="36" height="8" rx="3" fill="rgba(0,0,0,0.35)" />
-                <rect x="191" y="388" width="38" height="8" rx="3" fill="rgba(0,0,0,0.35)" />
-                <rect x="190" y="414" width="40" height="8" rx="3" fill="rgba(0,0,0,0.35)" />
-
-                <path d="M210 420 C240 420 246 429 246 438 H174 C174 429 180 420 210 420 Z" fill="url(#heroMetal)" />
-                <path d="M210 420 C226 420 234 425 237 431" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" fill="none" />
-
-                <rect x="150" y="246" width="6" height="150" rx="3" fill="url(#heroMetal)" />
-                <rect x="264" y="246" width="6" height="150" rx="3" fill="url(#heroMetal)" />
-                <path d="M150 246 L156 246 L156 396 L150 396 Z" fill="url(#heroMetalShine)" opacity="0.25" />
-                <rect x="116" y="244" width="48" height="14" rx="7" fill="url(#heroLeatherLight)" stroke="url(#heroMetal)" strokeWidth="1.2" />
-                <rect x="256" y="244" width="48" height="14" rx="7" fill="url(#heroLeatherLight)" stroke="url(#heroMetal)" strokeWidth="1.2" />
-                <circle cx="122" cy="251" r="1.6" fill="rgba(224,189,106,0.8)" />
-                <circle cx="158" cy="251" r="1.6" fill="rgba(224,189,106,0.8)" />
-                <circle cx="262" cy="251" r="1.6" fill="rgba(224,189,106,0.8)" />
-                <circle cx="298" cy="251" r="1.6" fill="rgba(224,189,106,0.8)" />
-
-                <path d="M118 268 C118 253 132 245 152 245 H268 C286 245 302 253 302 268 V290 C302 301 288 309 272 309 H148 C132 309 118 301 118 290 Z" fill="url(#heroLeather)" />
-                <path d="M136 268 C136 257 145 251 156 251" stroke="rgba(255,255,255,0.2)" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-                <path d="M120 268 C120 255 134 247 154 247 H268 C284 247 298 254 300 266" stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" fill="none" />
-                <path d="M150 268 V306" stroke="rgba(255,255,255,0.06)" strokeWidth="1.2" strokeDasharray="2 3" fill="none" />
-                <path d="M210 268 V306" stroke="rgba(255,255,255,0.06)" strokeWidth="1.2" strokeDasharray="2 3" fill="none" />
-                <path d="M270 268 V306" stroke="rgba(255,255,255,0.06)" strokeWidth="1.2" strokeDasharray="2 3" fill="none" />
-
-                <path d="M138 96 C138 92 142 88 146 88 H274 C278 88 282 92 282 96 V248 C282 260 272 270 258 270 H162 C148 270 138 260 138 248 Z" fill="url(#heroLeather)" />
-                <path d="M278 92 C282 92 284 96 284 100 V246" stroke="rgba(224,189,106,0.6)" strokeWidth="1.6" fill="none" />
-                <path d="M150 104 C150 98 154 94 160 94 H260 C266 94 270 98 270 104 V242" stroke="rgba(255,255,255,0.08)" strokeWidth="1.6" fill="none" />
-                <path d="M152 108 C152 102 156 98 162 98 H258 C264 98 268 102 268 108 V238" stroke="rgba(200,164,92,0.3)" strokeWidth="1.2" strokeDasharray="2 4" fill="none" />
-                <g stroke="rgba(0,0,0,0.35)" strokeWidth="1.2">
-                  <line x1="168" y1="132" x2="210" y2="170" />
-                  <line x1="210" y1="132" x2="168" y2="170" />
-                  <line x1="210" y1="132" x2="252" y2="170" />
-                  <line x1="252" y1="132" x2="210" y2="170" />
-                  <line x1="168" y1="170" x2="210" y2="208" />
-                  <line x1="210" y1="170" x2="168" y2="208" />
-                  <line x1="210" y1="170" x2="252" y2="208" />
-                  <line x1="252" y1="170" x2="210" y2="208" />
-                </g>
-                {[
-                  [168, 132],
-                  [210, 132],
-                  [252, 132],
-                  [168, 170],
-                  [210, 170],
-                  [252, 170],
-                  [168, 208],
-                  [210, 208],
-                  [252, 208],
-                ].map(([cx, cy]) => (
-                  <circle key={`btn-${cx}-${cy}`} cx={cx} cy={cy} r="3.2" fill="rgba(0,0,0,0.7)" />
-                ))}
-                {[
-                  [166, 130],
-                  [208, 130],
-                  [250, 130],
-                  [166, 168],
-                  [208, 168],
-                  [250, 168],
-                  [166, 206],
-                  [208, 206],
-                  [250, 206],
-                ].map(([cx, cy]) => (
-                  <circle key={`hi-${cx}-${cy}`} cx={cx} cy={cy} r="1" fill="rgba(255,255,255,0.25)" />
-                ))}
-
-                <rect x="168" y="56" width="84" height="52" rx="20" fill="url(#heroLeatherLight)" stroke="url(#heroMetal)" strokeWidth="1.4" />
-                <path d="M184 76 C184 67 192 62 210 62" stroke="rgba(255,255,255,0.26)" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-                <path d="M204 70 V104" stroke="rgba(255,255,255,0.08)" strokeWidth="1.2" strokeDasharray="2 3" fill="none" />
-                <path d="M216 70 V104" stroke="rgba(255,255,255,0.08)" strokeWidth="1.2" strokeDasharray="2 3" fill="none" />
-                <rect x="201" y="104" width="18" height="26" rx="5" fill="url(#heroMetal)" />
-
-                <g>
-                  <circle cx="114" cy="436" r="6" fill="none" stroke="url(#heroMetal)" strokeWidth="2.5" />
-                  <circle cx="142" cy="437" r="5" fill="none" stroke="url(#heroMetal)" strokeWidth="2.5" />
-                  <path d="M120 434 L146 426" stroke="url(#heroMetal)" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M136 434 L120 424" stroke="url(#heroMetal)" strokeWidth="2" strokeLinecap="round" />
-                </g>
-                <rect x="296" y="433" width="26" height="4" rx="1.5" fill="#1a1a1c" />
-                <g stroke="#1a1a1c" strokeWidth="1.2">
-                  <line x1="298" y1="437" x2="298" y2="444" />
-                  <line x1="302" y1="437" x2="302" y2="444" />
-                  <line x1="306" y1="437" x2="306" y2="444" />
-                  <line x1="310" y1="437" x2="310" y2="444" />
-                </g>
-              </svg>
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_52%,rgba(0,0,0,0.6)_100%)]" />
-              <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-zinc-950 to-transparent" />
-
-              <div className="absolute -right-6 bottom-16 flex flex-col items-end gap-2">
+              <div className="absolute -right-6 bottom-16 z-10 flex flex-col items-end gap-2">
                 {["Corte", "Barba", "Degradado"].map((label, i) => (
                   <div
                     key={label}
@@ -357,7 +162,7 @@ export default async function Home() {
                 ))}
               </div>
 
-              <div className="absolute -left-5 bottom-8 animate-float rounded-2xl border border-white/10 bg-zinc-950/85 px-4 py-2.5 shadow-2xl backdrop-blur">
+              <div className="absolute -left-5 bottom-8 z-10 animate-float rounded-2xl border border-white/10 bg-zinc-950/85 px-4 py-2.5 shadow-2xl backdrop-blur">
                 <div className="text-[9px] uppercase tracking-[0.2em] text-zinc-500">Desde</div>
                 <div className="mt-0.5 flex items-center gap-2">
                   <span className="font-display text-lg font-semibold text-gold">{money(startingPrice, currency)}</span>
@@ -370,21 +175,21 @@ export default async function Home() {
               </div>
 
               {featured && (
-                <div className="absolute -left-12 top-16 animate-float rounded-2xl border border-white/10 bg-zinc-950/85 p-3 shadow-2xl backdrop-blur">
+                <div className="absolute -left-12 top-16 z-10 animate-float rounded-2xl border border-white/10 bg-zinc-950/85 p-3 shadow-2xl backdrop-blur">
                   <div className="flex items-center gap-2.5">
                     <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-gold-light via-gold to-gold-dark font-display text-xs font-semibold text-zinc-950">
                       {initials(featured.name)}
                     </div>
                     <div>
-                      <div className="text-[13px] font-semibold">{featured.name}</div>
-                      <div className="text-[11px] text-zinc-500">{featured.specialty ?? "Barbero"}</div>
+                      <div className="truncate text-[13px] font-semibold">{featured.name}</div>
+                      <div className="truncate text-[11px] text-zinc-500 line-clamp-1">{featured.specialty ?? "Barbero"}</div>
                     </div>
                   </div>
                 </div>
               )}
 
               <div
-                className="absolute -right-7 top-12 animate-float rounded-full border border-gold/40 bg-zinc-950/85 px-3.5 py-1.5 text-xs text-gold shadow-xl backdrop-blur"
+                className="absolute -right-7 top-12 z-10 animate-float rounded-full border border-gold/40 bg-zinc-950/85 px-3.5 py-1.5 text-xs text-gold shadow-xl backdrop-blur"
                 style={{ animationDelay: "1.2s" }}
               >
                 ✦ Agendado hoy
@@ -468,7 +273,17 @@ export default async function Home() {
             <Reveal key={barber.id} delay={i * 70}>
               <div className="group relative flex items-center gap-4 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-zinc-900 to-zinc-950 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-gold/40">
                 <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold-light via-gold to-gold-dark font-display text-sm font-semibold text-zinc-950 shadow-[0_4px_20px_rgba(200,164,92,0.25)] transition-transform duration-300 group-hover:scale-105">
-                  {initials(barber.name)}
+                  {barber.avatar ? (
+                    <Image
+                      src={barber.avatar}
+                      alt={barber.name}
+                      width={100}
+                      height={100}
+                      className="rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-zinc-950/60">{initials(barber.name)}</div>
+                  )}
                 </div>
                 <div className="min-w-0">
                   <div className="truncate font-display text-lg font-medium uppercase tracking-tight">

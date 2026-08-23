@@ -62,6 +62,7 @@ export const barberCreateSchema = z.object({
   phone: optionalText,
   email: optionalEmail,
   specialty: optionalText,
+  avatar: z.string().url("El avatar debe ser una URL válida").optional(),
 });
 
 export const clientCreateSchema = z.object({

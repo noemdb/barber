@@ -7,23 +7,6 @@ import { createPayment, type PaymentRepository } from "@/lib/services/payment-se
 
 type CreatedPayment = Awaited<ReturnType<typeof prisma.payment.create>>;
 
-const paymentRepo: PaymentRepository<CreatedPayment> = {
-  findAppointmentWithPayment: (appointmentId) =>
-    prisma.appointment.findUnique({
-      where: { id: appointmentId },
-      include: { payment: true },
-    }),
-  createPayment: (data) =>
-    prisma.payment.create({
-      data,
-    }),
-  updateAppointmentStatus: (appointmentId, status) =>
-    prisma.appointment.update({
-      where: { id: appointmentId },
-      data: { status },
-    }),
-};
-
 export async function POST(request: Request) {
   await requireStaff();
   const raw = await request.json().catch(() => null);
