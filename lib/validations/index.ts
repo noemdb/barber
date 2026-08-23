@@ -77,3 +77,15 @@ export const serviceCreateSchema = z.object({
   durationMin: z.number().int("La duración debe ser un entero").positive("La duración debe ser positiva"),
   priceCents: z.number().int("El precio debe ser un entero").positive("El precio debe ser positivo"),
 });
+
+export const paymentCreateSchema = z.object({
+  appointmentId: z.string().cuid("ID de cita inválido"),
+  amountCents: z.number()
+    .int("El monto debe ser un entero")
+    .positive("El monto debe ser positivo")
+    .optional(),
+  method: z.enum(["CASH", "CARD", "TRANSFER", "OTHER"]).default("CASH"),
+  status: z.enum(["PENDING", "PAID"]).default("PAID"),
+  paidAt: z.coerce.date().optional(),
+  completeAppointment: z.boolean().default(true),
+});
