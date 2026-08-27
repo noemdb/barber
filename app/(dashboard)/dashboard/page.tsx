@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { money, initials } from "@/lib/format";
 import { getBusinessTimezone, zonedNowDate, zonedDayStartUtc, zonedDayEndUtc, addZonedDays } from "@/lib/time";
+import { RevenueChart } from "@/components/dashboard/revenue-chart";
 import { ArrowUpRight, CalendarDays, CircleDollarSign, Scissors, Users, Clock3 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -46,8 +47,6 @@ export default async function DashboardPage() {
     const idx = dayIndex.get(zonedNowDate(payment.paidAt.getTime(), timezone));
     if (idx !== undefined) days[idx].amount += payment.amountCents;
   }
-  const maxAmount = Math.max(...days.map((d) => d.amount), 1);
-
   const topServices = soldByService
     .map((s) => ({ name: nameById.get(s.serviceId) ?? "Servicio", count: s._count._all }))
     .sort((a, b) => b.count - a.count)
@@ -143,15 +142,11 @@ export default async function DashboardPage() {
             <h2 className="font-semibold">Ingresos recientes</h2>
             <p className="text-xs text-zinc-500 mt-1">Últimos 7 días</p>
           </div>
-          <div className="mt-5 h-48 flex items-end gap-3 border-b border-zinc-100 px-2">
-            {days.map((d) => (
-              <div key={d.dayKey} className="flex-1 h-full flex flex-col justify-end gap-2">
-                <div className="rounded-t-lg bg-zinc-900 w-full" style={{ height: `${d.amount > 0 ? Math.max((d.amount / maxAmount) * 100, 6) : 2}%` }} />
-                <span className="text-center text-[9px] text-zinc-400">{d.label}</span>
-              </div>
-            ))}
-          </div>
-          {days.every((d) => d.amount === 0) && <p className="mt-3 text-center text-xs text-zinc-500">Sin ingresos en los últimos 7 días.</p>}
+          {days.every((d) => d.amount === 0) ? (
+            <p className="mt-5 grid h-48 place-items-center rounded-xl bg-zinc-50 text-xs text-zinc-500">Sin ingresos en los últimos 7 días.</p>
+          ) : (
+            <div className="mt-4 h-52"><RevenueChart days={days} currency={settings?.currency || "USD"} /></div>
+          )}
         </section>
         <section className="rounded-2xl border border-zinc-200 bg-white shadow-sm p-5">
           <h2 className="font-semibold">Servicios más vendidos</h2>

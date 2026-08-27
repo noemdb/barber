@@ -74,6 +74,8 @@ export const clientCreateSchema = z.object({
   notes: optionalText,
 });
 
+export const clientPatchSchema = clientCreateSchema.partial();
+
 export const serviceCreateSchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio"),
   description: optionalText,

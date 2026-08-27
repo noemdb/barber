@@ -928,6 +928,55 @@ comprensibles.
 
 ---
 
+## 2026-08-27 · Cambio 20 — Gestión completa de clientes en el dashboard
+
+### Objetivo
+
+Completar la gestión de clientes en `/clients` con formularios editables, visualización de
+detalle, desactivación con confirmación y acciones visibles en la tabla.
+
+### Qué se hizo
+
+- **Formulario de cliente**:
+  - Mantiene inputs de texto disponibles para `Nombre`, `Teléfono`, `Correo` y `Notas`.
+  - El mismo formulario sirve para crear y editar clientes.
+  - El botón `Guardar` muestra estado `Guardando...` y queda deshabilitado durante la petición.
+- **Acciones de tabla**:
+  - `Visualizar`: abre un diálogo con nombre, estado, teléfono, correo y notas.
+  - `Editar`: carga los datos existentes en los inputs del formulario.
+  - `Desactivar`: solicita confirmación antes de ocultar el cliente del directorio.
+  - La columna de acciones permanece fija al desplazarse horizontalmente.
+- **API**:
+  - `PATCH /api/clients` actualiza los campos editables con `clientPatchSchema`.
+  - `DELETE /api/clients` realiza desactivación lógica (`active = false`) para preservar citas
+    históricas.
+  - Ambas mutaciones requieren rol `ADMIN` u `OWNER`.
+- **Feedback**:
+  - Toasts Sonner para creación, actualización, desactivación y errores.
+  - Estados de carga, error, reintento y búsqueda sin resultados.
+
+### Archivos
+
+| Archivo | Acción |
+| --- | --- |
+| `app/(dashboard)/clients/page.tsx` | inputs, modal CRUD, visualización y acciones |
+| `app/api/clients/route.ts` | endpoints `PATCH` y `DELETE` |
+| `lib/validations/index.ts` | schema parcial `clientPatchSchema` |
+
+### Base de datos
+
+- No requiere migración: se reutiliza el campo `Client.active` para desactivación lógica.
+- No se eliminan registros que puedan estar relacionados con citas existentes.
+
+### Verificación
+
+- `npm run typecheck`: OK.
+- `npm run lint`: OK.
+- `npm run test`: 17/17 OK.
+- `npm run build`: OK.
+
+---
+
 ## Deuda técnica pendiente (orden sugerido)
 
 1. API de pagos (`Payment` en schema, sin endpoint/UI) + registro de cobro atómico (`$transaction`,
