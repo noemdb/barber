@@ -18,6 +18,9 @@ const oswald = Oswald({
 export const metadata: Metadata = {
   title: "BarberService",
   description: "Gestión integral de barbería",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

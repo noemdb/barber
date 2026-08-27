@@ -143,6 +143,7 @@ export default async function Home() {
                   alt="Barbería — interior del local"
                   className="absolute inset-0 object-cover rounded-[2rem]"
                   fill
+                  priority
                   sizes="(max-width: 768px) 100vw, 28rem"
                 />
                 <div className="absolute inset-0 bg-gradient-to-br from-zinc-800/35 via-zinc-900/25 to-black/45" />
@@ -279,6 +280,7 @@ export default async function Home() {
                       alt={barber.name}
                       width={100}
                       height={100}
+                      loading={i < 2 ? "eager" : "lazy"}
                       className="rounded-full object-cover"
                     />
                   ) : (

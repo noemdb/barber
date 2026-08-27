@@ -26,13 +26,13 @@ export default function LandingNav({ businessName }: { businessName: string }) {
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${scrolled ? "border-b border-white/10 bg-zinc-950/85 backdrop-blur-md" : "bg-transparent"}`}
     >
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="grid h-9 w-9 place-items-center rounded-lg border border-gold/40 bg-gold/10 text-gold">
+      <nav className="mx-auto flex min-w-0 max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <Link href="/" className="flex min-w-0 items-center gap-2.5">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-gold/40 bg-gold/10 text-gold">
             <Scissors size={16} />
           </div>
-          <div className="leading-tight">
-            <div className="font-display text-base font-semibold uppercase tracking-tight">{businessName}</div>
+          <div className="min-w-0 leading-tight">
+            <div className="truncate font-display text-base font-semibold uppercase tracking-tight">{businessName}</div>
             <div className="text-[9px] uppercase tracking-[0.3em] text-zinc-500">Barber &amp; Styling</div>
           </div>
         </Link>
