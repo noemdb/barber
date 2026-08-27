@@ -6,6 +6,32 @@ regresión conocida.
 
 ---
 
+## 2026-08-27 · Cambio 18 — Migración de `middleware.ts` a la convención `proxy`
+
+### Objetivo
+
+Eliminar el warning de deprecación de la convención `middleware` (renombrada a `proxy` en
+Next.js 16). Elimina fricción de mantenimiento y alinea el código con la convención actual.
+
+### Qué se hizo
+
+- `git mv middleware.ts proxy.ts`.
+- Renombrada la función exportada `middleware` → `proxy`. La lógica (JWT con `jose`, rutas
+  protegidas, matcher) y el comportamiento son idénticos.
+
+### Archivos
+
+| Archivo | Acción |
+| --- | --- |
+| `middleware.ts` → `proxy.ts` | renombrado + función `proxy` |
+
+### Verificación
+
+- `npm run typecheck`: OK. `npm run lint`: OK.
+- `npm run build`: OK sin warning de deprecación de `middleware`.
+
+---
+
 ## 2026-08-20 · Cambio 1 — Endurecimiento de la capa API
 
 ### Objetivo
@@ -790,10 +816,10 @@ sobre el server real + Prisma/Neon.
     `RATE_LIMITED` (nuevo código en `lib/errors.ts`). El límite por IP se evalúa antes de parsear
     el body.
   - Nota: al ser en memoria, en Vercel el límite aplica por instancia serverless, no global.
-- **Middleware edge**:
-  - `middleware.ts` nuevo: verifica el JWT (`jose`) y protege `/dashboard`, `/appointments`,
-    `/clients`, `/barbers`, `/services`, `/settings` y subrutas; sin sesión → redirect `/login`;
-    rol CLIENT → redirect `/`.
+- **Proxy (edge)**:
+  - `middleware.ts` (hoy `proxy.ts`) nuevo: verifica el JWT (`jose`) y protege `/dashboard`,
+    `/appointments`, `/clients`, `/barbers`, `/services`, `/settings` y subrutas; sin sesión →
+    redirect `/login`; rol CLIENT → redirect `/`.
 
 ### Archivos
 
@@ -808,7 +834,7 @@ sobre el server real + Prisma/Neon.
 | `app/(dashboard)/appointments/page.tsx` | consume nuevo shape + formatea con la zona |
 | `components/upcoming-appointments-dialog.tsx` | idem + "Ver día" con día local del negocio |
 | `lib/format.ts` | +`tzFormat`, `zonedDate` |
-| `middleware.ts` | nuevo: protección edge por rol |
+| `middleware.ts` → `proxy.ts` | nuevo: protección edge por rol |
 | `tests/api/flows.test.ts` | adaptado al shape `{appointments, timezone}` |
 
 ### Decisión de diseño
@@ -836,6 +862,69 @@ sobre el server real + Prisma/Neon.
   página, dialog y tests; cualquier consumidor externo debería ajustarse.
 - Rate-limit en memoria: por instancia; aceptable para un negocio pequeño.
 - Middleware duplica la comprobación de sesión (layout + edge) con la misma clave JWT.
+
+---
+
+## 2026-08-27 · Cambio 19 — Avatares de barberos con UploadThing y notificaciones Sonner
+
+### Objetivo
+
+Permitir cargar imágenes de avatar desde el formulario de creación/edición de barberos,
+mostrar una vista previa consistente y reemplazar alertas genéricas por notificaciones de UI
+comprensibles.
+
+### Qué se hizo
+
+- **UploadThing SDK v7**:
+  - Añadidos `uploadthing` y `@uploadthing/react`.
+  - Nuevo file router `avatarUploader` en `/api/uploadthing`, protegido para `ADMIN` y `OWNER`.
+  - Acepta únicamente imágenes PNG, JPG/JPEG, GIF y SVG, con máximo de 2 MB y un archivo por carga.
+  - La URL `file.ufsUrl` se guarda en `Barber.avatar` mediante el formulario existente.
+  - Los archivos con MIME no permitido se eliminan desde UploadThing.
+  - `ufs.sh` se configuró como dominio remoto permitido para `next/image`.
+- **Formulario y tarjetas de barberos**:
+  - Selector de archivos UploadThing en creación y edición.
+  - Vista previa de 80x80 con fallback de tijeras, estado de carga, confirmación y opción para quitar.
+  - Las tarjetas muestran el avatar almacenado y conservan el fallback cuando no existe imagen.
+- **Notificaciones**:
+  - Añadido `sonner` y `Toaster` global en `app/layout.tsx`.
+  - Creación, edición, desactivación y errores del formulario usan toasts.
+  - `FileSizeMismatch` se traduce a un mensaje de usuario indicando el límite de 2 MB.
+- **Configuración**:
+  - `.env.example` documenta `UPLOADTHING_TOKEN`.
+  - `next.config.ts` permite subdominios HTTPS de `*.ufs.sh`.
+
+### Archivos
+
+| Archivo | Acción |
+| --- | --- |
+| `app/api/uploadthing/core.ts` | nuevo file router protegido |
+| `app/api/uploadthing/route.ts` | nuevo handler GET/POST |
+| `lib/uploadthing.ts` | nuevo componente tipado `UploadButton` |
+| `app/(dashboard)/barbers/page.tsx` | carga, preview, toasts y acciones de avatar |
+| `app/layout.tsx` | `Toaster` global |
+| `next.config.ts` | dominio remoto UploadThing |
+| `.env.example` | variable `UPLOADTHING_TOKEN` |
+| `package.json` | `uploadthing`, `@uploadthing/react` y `sonner` |
+
+### Base de datos
+
+- No requiere migración: `Barber.avatar` ya existía en el esquema Prisma.
+
+### Decisiones y limitaciones
+
+- `UPLOADTHING_TOKEN` debe ser el App Token base64 generado por UploadThing v7, con `apiKey`,
+  `appId` y `regions`; una clave `sk_live_...` no es compatible con este SDK.
+- El borrado de un avatar del formulario solo elimina la referencia en el barbero; la limpieza
+  del archivo remoto queda fuera de este cambio.
+- La desactivación de barberos continúa siendo lógica para preservar citas históricas.
+
+### Verificación
+
+- `npm run typecheck`: OK.
+- `npm run lint`: OK.
+- `npm run test`: 17/17 OK.
+- `npm run build`: OK; se genera `/api/uploadthing`.
 
 ---
 

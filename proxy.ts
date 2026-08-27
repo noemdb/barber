@@ -6,7 +6,7 @@ const secret = new TextEncoder().encode(process.env.AUTH_SECRET || "development-
 
 const PROTECTED_ROUTES = ["/dashboard", "/appointments", "/clients", "/barbers", "/services", "/settings"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(COOKIE)?.value;
 

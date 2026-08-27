@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { withApi } from "@/lib/api";
 import { DomainError, ErrorCodes } from "@/lib/errors";
-import { barberCreateSchema } from "@/lib/validations";
+import { barberCreateSchema, barberPatchSchema } from "@/lib/validations";
 import { requireStaff, requireRole } from "@/lib/permissions";
 
 export async function GET() {
@@ -27,17 +27,17 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   return withApi(async () => {
-    await requireStaff();
+    await requireRole("ADMIN", "OWNER");
     const raw = await request.json().catch(() => null);
     if (!raw || typeof raw !== "object") throw new DomainError(ErrorCodes.VALIDATION_ERROR, "Cuerpo inválido", 400);
 
-    const { id, ...rest } = raw;
-    if (!id) throw new DomainError(ErrorCodes.VALIDATION_ERROR, "El ID del barbero es obligatorio", 400);
+    const { id, ...rest } = raw as { id?: unknown } & Record<string, unknown>;
+    if (typeof id !== "string" || !id) throw new DomainError(ErrorCodes.VALIDATION_ERROR, "El ID del barbero es obligatorio", 400);
 
     const barber = await prisma.barber.findUnique({ where: { id } });
     if (!barber) throw new DomainError(ErrorCodes.NOT_FOUND, "Barbero no encontrado", 404);
 
-    const parse = barberCreateSchema.safeParse(rest);
+    const parse = barberPatchSchema.safeParse(rest);
     if (!parse.success) throw new DomainError(ErrorCodes.VALIDATION_ERROR, "Datos de barbero inválidos", 400);
 
     const data = {
@@ -54,5 +54,21 @@ export async function PATCH(request: Request) {
     });
 
     return { data: updated };
+  });
+}
+
+export async function DELETE(request: Request) {
+  return withApi(async () => {
+    await requireRole("ADMIN", "OWNER");
+    const raw = await request.json().catch(() => null);
+    if (!raw || typeof raw !== "object" || !("id" in raw) || typeof raw.id !== "string") {
+      throw new DomainError(ErrorCodes.VALIDATION_ERROR, "El ID del barbero es obligatorio", 400);
+    }
+
+    const barber = await prisma.barber.findUnique({ where: { id: raw.id }, select: { id: true, active: true } });
+    if (!barber || !barber.active) throw new DomainError(ErrorCodes.NOT_FOUND, "Barbero no encontrado", 404);
+
+    await prisma.barber.update({ where: { id: raw.id }, data: { active: false } });
+    return { data: { ok: true } };
   });
 }

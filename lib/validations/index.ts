@@ -65,6 +65,8 @@ export const barberCreateSchema = z.object({
   avatar: z.string().url("El avatar debe ser una URL válida").optional(),
 });
 
+export const barberPatchSchema = barberCreateSchema.partial();
+
 export const clientCreateSchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio"),
   phone: optionalText,
