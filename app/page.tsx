@@ -296,7 +296,7 @@ export default async function Home() {
                       {barber.specialty}
                     </div>
                   )}
-                  {barber.phone && <div className="mt-1 text-xs text-zinc-600">{barber.phone}</div>}
+                  {barber.phone && <div className="mt-1 break-words text-xs text-zinc-600">{barber.phone}</div>}
                 </div>
               </div>
             </Reveal>
@@ -443,17 +443,17 @@ export default async function Home() {
           ].map((item, i) => (
             <Reveal key={item.label} delay={i * 70}>
               {item.value ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex items-center gap-2.5 text-gold">
                     {item.icon}
                     <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{item.label}</span>
                   </div>
                   {item.href ? (
-                    <a href={item.href} className="mt-2 block text-sm text-zinc-300 transition-colors hover:text-gold">
+                    <a href={item.href} className="mt-2 block break-words text-sm text-zinc-300 transition-colors hover:text-gold">
                       {item.value}
                     </a>
                   ) : (
-                    <div className="mt-2 text-sm text-zinc-300">{item.value}</div>
+                    <div className="mt-2 break-words text-sm text-zinc-300">{item.value}</div>
                   )}
                 </div>
               ) : null}
@@ -496,7 +496,7 @@ export default async function Home() {
             </div>
             <div>
               <div className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Contacto</div>
-              <ul className="mt-3 space-y-2 text-[13px] text-zinc-400">
+              <ul className="mt-3 space-y-2 break-words text-[13px] text-zinc-400">
                 {settings?.phone && <li>{settings.phone}</li>}
                 {settings?.email && <li>{settings.email}</li>}
                 {settings?.address && <li>{settings.address}</li>}
