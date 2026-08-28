@@ -25,7 +25,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" data-scroll-behavior="smooth" className={`${manrope.variable} ${oswald.variable}`}>
+    <html
+      lang="es"
+      data-scroll-behavior="smooth"
+      className={`${manrope.variable} ${oswald.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>

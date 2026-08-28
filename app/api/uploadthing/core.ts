@@ -21,6 +21,21 @@ export const ourFileRouter = {
 
       return { url: file.ufsUrl };
     }),
+  brandingUploader: uploadthing({
+    image: { maxFileSize: "4MB", maxFileCount: 1 },
+  })
+    .middleware(async () => {
+      await requireRole("ADMIN", "OWNER");
+      return {};
+    })
+    .onUploadComplete(async ({ file }) => {
+      if (!allowedImageTypes.has(file.type)) {
+        await new UTApi().deleteFiles(file.key);
+        throw new Error("Solo se permiten imágenes PNG, JPG, GIF o SVG");
+      }
+
+      return { url: file.ufsUrl };
+    }),
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;

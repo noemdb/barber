@@ -129,12 +129,52 @@ model Payment {
 model BusinessSettings {
   id              String   @id @default(cuid())
   businessName    String   @default("Barber Shop Central")
+  logoUrl         String?
+  faviconUrl      String?
+  tagline         String?
+  heroImageUrl    String?
+  description     String?
   phone           String?
   email           String?
+  whatsapp        String?
   address         String?
+  mapsUrl         String?
+  instagramUrl    String?
+  facebookUrl     String?
   currency        String   @default("USD")
   timezone        String   @default("America/Caracas")
   appointmentSlot Int      @default(30)
+  hours           BusinessHour[]
+  testimonials    Testimonial[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model BusinessHour {
+  id        String          @id @default(cuid())
+  businessId String
+  dayOfWeek Int
+  openTime  String?
+  closeTime String?
+  business  BusinessSettings @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@unique([businessId, dayOfWeek])
+  @@index([businessId])
+}
+
+model Testimonial {
+  id         String         @id @default(cuid())
+  businessId String
+  author     String
+  role       String?
+  quote      String
+  rating     Int            @default(5)
+  order      Int            @default(0)
+  business   BusinessSettings @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([businessId, order])
 }

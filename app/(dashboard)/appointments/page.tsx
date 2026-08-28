@@ -26,11 +26,11 @@ const labels: Record<string, string> = {
   NO_SHOW: "No asistió",
 };
 const classes: Record<string, string> = {
-  PENDING: "bg-amber-50 text-amber-700",
-  CONFIRMED: "bg-emerald-50 text-emerald-700",
-  COMPLETED: "bg-indigo-50 text-indigo-700",
-  CANCELLED: "bg-red-50 text-red-700",
-  NO_SHOW: "bg-zinc-100 text-zinc-600",
+  PENDING: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400",
+  CONFIRMED: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400",
+  COMPLETED: "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400",
+  CANCELLED: "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400",
+  NO_SHOW: "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400",
 };
 
 const toIso = (d: Date) =>
@@ -114,53 +114,53 @@ export default function AppointmentsPage() {
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Citas</h1>
-          <p className="text-sm text-zinc-500 mt-1">Agenda y controla el estado de cada servicio.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Citas</h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Agenda y controla el estado de cada servicio.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setShowUpcoming(true)}
-            className="h-10 px-4 rounded-xl border border-zinc-200 text-sm font-semibold inline-flex gap-2 items-center hover:bg-zinc-50"
+            className="h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm font-semibold inline-flex gap-2 items-center hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors"
           >
             <CalendarClock size={16} /> Próximas citas
             {upcomingCount > 0 && (
-              <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-zinc-950 px-1.5 text-[10px] font-bold text-white">
+              <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-zinc-950 dark:bg-gold px-1.5 text-[10px] font-bold text-white dark:text-zinc-950">
                 {upcomingCount}
               </span>
             )}
           </button>
           <button
             onClick={() => setShowNew(true)}
-            className="h-10 px-4 rounded-xl bg-zinc-950 text-white text-sm font-semibold inline-flex gap-2 items-center justify-center"
+            className="h-10 px-4 rounded-xl bg-zinc-950 dark:bg-gold text-white dark:text-zinc-950 text-sm font-semibold inline-flex gap-2 items-center justify-center hover:bg-zinc-800 dark:hover:bg-gold-light transition-colors"
           >
             <Plus size={16} /> Nueva cita
           </button>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
-        <div className="p-4 flex flex-col lg:flex-row gap-3 justify-between border-b border-zinc-100">
-          <div className="flex items-center gap-2 text-sm font-semibold">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
+        <div className="p-4 flex flex-col lg:flex-row gap-3 justify-between border-b border-zinc-100 dark:border-zinc-800">
+          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
             <CalendarDays size={17} /> Agenda
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <label className="text-xs text-zinc-500">Desde</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400">Desde</label>
             <input
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="h-9 rounded-lg border border-zinc-200 px-3 text-xs"
+              className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 [color-scheme:light_dark]"
             />
-            <label className="text-xs text-zinc-500">Hasta</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400">Hasta</label>
             <input
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="h-9 rounded-lg border border-zinc-200 px-3 text-xs"
+              className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 [color-scheme:light_dark]"
             />
             <button
               onClick={() => { setLoading(true); load(); }}
-              className="h-9 w-9 rounded-lg border border-zinc-200 grid place-items-center"
+              className="h-9 w-9 rounded-lg border border-zinc-200 dark:border-zinc-700 grid place-items-center text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
             >
               <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
             </button>
@@ -168,42 +168,42 @@ export default function AppointmentsPage() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[850px] text-left">
-            <thead className="bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-400">
+            <thead className="bg-zinc-50 dark:bg-zinc-900 text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
               <tr>
-                <th className="px-5 py-3">Fecha</th>
-                <th className="px-5 py-3">Hora</th>
-                <th className="px-5 py-3">Cliente</th>
-                <th className="px-5 py-3">Servicio</th>
-                <th className="px-5 py-3">Barbero</th>
-                <th className="px-5 py-3">Estado</th>
-                <th className="px-5 py-3 text-right">Total</th>
+                <th className="px-5 py-3 text-zinc-500 dark:text-zinc-400">Fecha</th>
+                <th className="px-5 py-3 text-zinc-500 dark:text-zinc-400">Hora</th>
+                <th className="px-5 py-3 text-zinc-500 dark:text-zinc-400">Cliente</th>
+                <th className="px-5 py-3 text-zinc-500 dark:text-zinc-400">Servicio</th>
+                <th className="px-5 py-3 text-zinc-500 dark:text-zinc-400">Barbero</th>
+                <th className="px-5 py-3 text-zinc-500 dark:text-zinc-400">Estado</th>
+                <th className="px-5 py-3 text-right text-zinc-500 dark:text-zinc-400">Total</th>
                 <th className="px-5 py-3"></th>
               </tr>
             </thead>
             <tbody>
               {items.map((a) => (
-                <tr className="border-t border-zinc-100 text-xs" key={a.id}>
-                  <td className="px-5 py-3 whitespace-nowrap">
+                <tr className="border-t border-zinc-100 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100" key={a.id}>
+                  <td className="px-5 py-3 whitespace-nowrap text-zinc-600 dark:text-zinc-400">
                     {tzFormat(a.startsAt, timezone, { weekday: "short", day: "2-digit", month: "short" })}
                   </td>
-                  <td className="px-5 py-3 font-semibold">
+                  <td className="px-5 py-3 font-semibold text-zinc-600 dark:text-zinc-400">
                     {tzFormat(a.startsAt, timezone, { hour: "2-digit", minute: "2-digit" })}
                   </td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-7 w-7 rounded-full bg-zinc-100 grid place-items-center text-[9px] font-bold">
+                      <div className="h-7 w-7 rounded-full bg-zinc-100 dark:bg-zinc-800 grid place-items-center text-[9px] font-bold text-zinc-700 dark:text-zinc-300">
                         {initials(a.client.name)}
                       </div>
                       {a.client.name}
                     </div>
                   </td>
-                  <td className="px-5 py-3">{a.service.name}</td>
-                  <td className="px-5 py-3">{a.barber.name}</td>
+                  <td className="px-5 py-3 text-zinc-600 dark:text-zinc-400">{a.service.name}</td>
+                  <td className="px-5 py-3 text-zinc-600 dark:text-zinc-400">{a.barber.name}</td>
                   <td className="px-5 py-3">
                     <select
                       value={a.status}
                       onChange={(e) => status(a.id, e.target.value)}
-                      className={`rounded-full border-0 px-2 py-1 text-[9px] font-bold ${classes[a.status]}`}
+                      className={`rounded-full border-0 px-2 py-1 text-[9px] font-bold cursor-pointer ${classes[a.status]}`}
                     >
                       <option value="PENDING">{labels.PENDING}</option>
                       <option value="CONFIRMED">{labels.CONFIRMED}</option>
@@ -214,7 +214,7 @@ export default function AppointmentsPage() {
                   </td>
                   <td className="px-5 py-3 text-right font-semibold">{money(a.priceCents)}</td>
                   <td className="px-5 py-3 text-right">
-                    <Link className="text-xs font-semibold hover:underline" href={`/appointments/${a.id}`}>
+                    <Link className="text-xs font-semibold hover:underline text-zinc-600 dark:text-zinc-400" href={`/appointments/${a.id}`}>
                       Ver
                     </Link>
                   </td>
@@ -223,7 +223,7 @@ export default function AppointmentsPage() {
             </tbody>
           </table>
           {!loading && items.length === 0 && (
-            <div className="p-12 text-center text-sm text-zinc-500">No hay citas para este rango de fechas.</div>
+            <div className="p-12 text-center text-sm text-zinc-500 dark:text-zinc-400">No hay citas para este rango de fechas.</div>
           )}
         </div>
       </div>
@@ -274,22 +274,22 @@ function NewAppointment({ onClose, onSaved }: { onClose: () => void; onSaved: ()
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/40 grid place-items-center p-4" onMouseDown={onClose}>
       <form
         onSubmit={save}
         onMouseDown={(e) => e.stopPropagation()}
-        className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl"
+        className="w-full max-w-lg rounded-2xl bg-white dark:bg-zinc-900 p-5 shadow-2xl border border-zinc-200 dark:border-zinc-800"
       >
         <div className="flex justify-between">
           <div>
-            <h2 className="font-semibold text-lg">Nueva cita</h2>
-            <p className="text-xs text-zinc-500 mt-1">Reserva un horario para un cliente.</p>
+            <h2 className="font-semibold text-lg text-zinc-900 dark:text-zinc-100">Nueva cita</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Reserva un horario para un cliente.</p>
           </div>
-          <button type="button" onClick={onClose} className="text-zinc-400">×</button>
+          <button type="button" onClick={onClose} className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors text-xl">×</button>
         </div>
         <div className="grid sm:grid-cols-2 gap-4 mt-6">
           <Field label="Cliente">
-            <select required value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })}>
+            <select required value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })} className="w-full h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
               <option value="">Seleccionar...</option>
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -297,7 +297,7 @@ function NewAppointment({ onClose, onSaved }: { onClose: () => void; onSaved: ()
             </select>
           </Field>
           <Field label="Barbero">
-            <select required value={form.barberId} onChange={(e) => setForm({ ...form, barberId: e.target.value })}>
+            <select required value={form.barberId} onChange={(e) => setForm({ ...form, barberId: e.target.value })} className="w-full h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
               <option value="">Seleccionar...</option>
               {barbers.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
@@ -305,7 +305,7 @@ function NewAppointment({ onClose, onSaved }: { onClose: () => void; onSaved: ()
             </select>
           </Field>
           <Field label="Servicio">
-            <select required value={form.serviceId} onChange={(e) => setForm({ ...form, serviceId: e.target.value })}>
+            <select required value={form.serviceId} onChange={(e) => setForm({ ...form, serviceId: e.target.value })} className="w-full h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
               <option value="">Seleccionar...</option>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>{s.name} · {money(s.priceCents ?? 0)}</option>
@@ -318,17 +318,18 @@ function NewAppointment({ onClose, onSaved }: { onClose: () => void; onSaved: ()
               type="datetime-local"
               value={form.startsAt}
               onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
+              className="w-full h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 [color-scheme:light_dark]"
             />
           </Field>
           <Field label="Notas" wide>
-            <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 resize-none min-h-[80px]" />
           </Field>
         </div>
-        <div className="mt-6 border-t pt-4 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="h-10 px-4 rounded-xl border border-zinc-200 text-sm">
+        <div className="mt-6 border-t border-zinc-100 dark:border-zinc-800 pt-4 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
             Cancelar
           </button>
-          <button disabled={saving} className="h-10 px-4 rounded-xl bg-zinc-950 text-white text-sm font-semibold">
+          <button disabled={saving} className="h-10 px-4 rounded-xl bg-zinc-950 dark:bg-gold text-white dark:text-zinc-950 text-sm font-semibold hover:bg-zinc-800 dark:hover:bg-gold-light transition-colors disabled:opacity-50">
             {saving ? "Guardando..." : "Guardar cita"}
           </button>
         </div>
@@ -339,7 +340,7 @@ function NewAppointment({ onClose, onSaved }: { onClose: () => void; onSaved: ()
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
-    <label className={`${wide ? "sm:col-span-2 " : ""}text-xs font-medium text-zinc-700`}>
+    <label className={`${wide ? "sm:col-span-2 " : ""}text-xs font-medium text-zinc-700 dark:text-zinc-300`}>
       {label}
       <div className="mt-1.5">{children}</div>
     </label>

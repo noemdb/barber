@@ -7,6 +7,7 @@ import {
   Clock,
   Mail,
   MapPin,
+  MessageCircle,
   Phone,
   Scissors,
   Sparkles,
@@ -32,23 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const marqueeWords = ["Cortes de cabello", "Barba", "Degradados", "Peinados", "Mascarillas"];
 
-const testimonials = [
-  {
-    quote: "Saliendo del local con el mejor fade de la ciudad. Atención de primer nivel, de principio a fin.",
-    name: "Carlos Pérez",
-    role: "Cliente frecuente",
-  },
-  {
-    quote: "Agendar fue facilísimo y siempre respetan la hora. Una experiencia de lujo.",
-    name: "Miguel Rodríguez",
-    role: "Cliente",
-  },
-  {
-    quote: "El equipo sabe exactamente lo que hace; el trato es impecable en cada visita.",
-    name: "Pedro Sánchez",
-    role: "Cliente",
-  },
-];
+const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
 const grain =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
@@ -63,20 +48,38 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 }
 
 export default async function Home() {
-  const [settings, services, barbers] = await Promise.all([
-    prisma.businessSettings.findFirst(),
+  const settings = await prisma.businessSettings.findFirst();
+  const businessId = settings?.id ?? "settings";
+  const [services, barbers, businessHours, testimonials] = await Promise.all([
     prisma.service.findMany({ where: { active: true }, orderBy: { priceCents: "asc" } }),
     prisma.barber.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    prisma.businessHour.findMany({ where: { businessId }, orderBy: { dayOfWeek: "asc" } }),
+    prisma.testimonial.findMany({ where: { businessId }, orderBy: { order: "asc" } }),
   ]);
 
   const businessName = settings?.businessName ?? "BarberService";
   const currency = settings?.currency ?? "USD";
   const startingPrice = services.length ? Math.min(...services.map((s) => s.priceCents)) : 0;
   const featured = barbers[0];
+  const heroImage = settings?.heroImageUrl ?? "/image/000000000d6081f68d1ea23de4944a97.png";
+  const tagline = settings?.tagline ?? "Barbería premium";
+  const heroDescription =
+    settings?.description ??
+    "Cortes de cabello, barba y degradados de precisión, hechos a tu medida. Elige tu servicio, elige a tu barbero y reserva en minutos, sin esperas.";
+  const hoursByDay = new Map(businessHours.map((h) => [h.dayOfWeek, h]));
+  const schedule = DAY_LABELS.map((label, dayOfWeek) => {
+    const h = hoursByDay.get(dayOfWeek);
+    if (!h?.openTime || !h?.closeTime) return `${label} · Cerrado`;
+    return `${label} · ${h.openTime} – ${h.closeTime}`;
+  });
+  const socialLinks = [
+    { label: "Instagram", href: settings?.instagramUrl },
+    { label: "Facebook", href: settings?.facebookUrl },
+  ].filter((s) => s.href) as { label: string; href: string }[];
 
   return (
     <main className="min-h-screen w-full min-w-0 overflow-x-clip bg-zinc-950 text-white">
-      <LandingNav businessName={businessName} />
+      <LandingNav businessName={businessName} logoUrl={settings?.logoUrl} />
 
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(255,255,255,0.12),transparent_34%),radial-gradient(circle_at_85%_80%,rgba(200,164,92,0.2),transparent_40%),radial-gradient(circle_at_78%_42%,rgba(200,164,92,0.16),transparent_55%)]" />
@@ -87,14 +90,13 @@ export default async function Home() {
             <Reveal>
               <p className="flex items-center gap-3 text-[11px] uppercase tracking-[0.25em] text-gold">
                 <span className="h-px w-8 bg-gold/60" />
-                Desde {new Date().getFullYear() - 3} · Barbería premium
+                Desde {new Date().getFullYear() - 3} · {tagline}
               </p>
               <h1 className="mt-4 font-display text-5xl font-semibold uppercase leading-[1.05] tracking-tight md:text-6xl">
                 El arte de un <span className="text-gold">buen corte.</span>
               </h1>
               <p className="mt-4 max-w-lg text-base leading-6 text-zinc-400">
-                Cortes de cabello, barba y degradados de precisión, hechos a tu medida. Elige tu
-                servicio, elige a tu barbero y reserva en minutos, sin esperas.
+                {heroDescription}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <BookingButton className="group flex h-11 items-center gap-2 rounded-full bg-gold px-6 text-sm font-semibold text-zinc-950 transition-all hover:bg-gold-light hover:shadow-[0_8px_30px_rgba(200,164,92,0.35)]">
@@ -139,8 +141,8 @@ export default async function Home() {
                 }}
                 >
                 <Image
-                  src="/image/000000000d6081f68d1ea23de4944a97.png"
-                  alt="Barbería — interior del local"
+                  src={heroImage}
+                  alt={`${businessName} — interior del local`}
                   className="absolute inset-0 object-cover rounded-[2rem]"
                   fill
                   priority
@@ -393,11 +395,11 @@ export default async function Home() {
         </Reveal>
         <div className="mt-7 grid gap-3 md:grid-cols-3">
           {testimonials.map((item, i) => (
-            <Reveal key={item.name} delay={i * 80}>
+            <Reveal key={item.id} delay={i * 80}>
               <figure className="flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                 <div>
                   <div className="flex items-center gap-1">
-                    {Array.from({ length: 5 }).map((_, s) => (
+                    {Array.from({ length: item.rating }).map((_, s) => (
                       <Star key={s} size={13} className="fill-gold text-gold" />
                     ))}
                   </div>
@@ -407,17 +409,22 @@ export default async function Home() {
                 </div>
                 <figcaption className="mt-5 flex items-center gap-2.5">
                   <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-gold-light via-gold to-gold-dark font-display text-[11px] font-semibold text-zinc-950">
-                    {initials(item.name)}
+                    {initials(item.author)}
                   </div>
                   <div>
-                    <div className="text-[13px] font-semibold">{item.name}</div>
-                    <div className="text-[11px] text-zinc-500">{item.role}</div>
+                    <div className="text-[13px] font-semibold">{item.author}</div>
+                    <div className="text-[11px] text-zinc-500">{item.role ?? "Cliente"}</div>
                   </div>
                 </figcaption>
               </figure>
             </Reveal>
           ))}
         </div>
+        {testimonials.length === 0 && (
+          <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center text-sm text-zinc-500">
+            Sin testimonios todavía.
+          </div>
+        )}
       </section>
 
       <section id="contacto" className="mx-auto max-w-6xl px-6 py-14 md:py-16">
@@ -442,8 +449,14 @@ export default async function Home() {
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {[
             { icon: <Phone size={17} />, label: "Teléfono", value: settings?.phone, href: settings?.phone ? `tel:${settings.phone}` : null },
+            {
+              icon: <MessageCircle size={17} />,
+              label: "WhatsApp",
+              value: settings?.whatsapp,
+              href: settings?.whatsapp ? `https://wa.me/${settings.whatsapp.replace(/\D/g, "")}` : null,
+            },
             { icon: <Mail size={17} />, label: "Correo", value: settings?.email, href: settings?.email ? `mailto:${settings.email}` : null },
-            { icon: <MapPin size={17} />, label: "Dirección", value: settings?.address, href: null },
+            { icon: <MapPin size={17} />, label: "Dirección", value: settings?.address, href: settings?.mapsUrl ?? null },
           ].map((item, i) => (
             <Reveal key={item.label} delay={i * 70}>
               {item.value ? (
@@ -504,22 +517,46 @@ export default async function Home() {
                 {settings?.phone && <li>{settings.phone}</li>}
                 {settings?.email && <li>{settings.email}</li>}
                 {settings?.address && <li>{settings.address}</li>}
+                {settings?.mapsUrl && (
+                  <li>
+                    <a href={settings.mapsUrl} className="transition-colors hover:text-gold">
+                      Ver en el mapa
+                    </a>
+                  </li>
+                )}
               </ul>
+              {socialLinks.length > 0 && (
+                <div className="mt-3 flex gap-4 text-[11px] uppercase tracking-[0.15em]">
+                  {socialLinks.map((s) => (
+                    <a key={s.label} href={s.href} className="text-zinc-400 transition-colors hover:text-gold">
+                      {s.label}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <div className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Horario</div>
-              <ul className="mt-3 space-y-2 text-[13px] text-zinc-400">
-                <li>Lun – Vie · 8:00 – 18:00</li>
-                <li>Sáb · 9:00 – 17:00</li>
-                <li>Dom · Cerrado</li>
+              <ul className="mt-3 space-y-1.5 text-[13px] text-zinc-400">
+                {schedule.map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
               </ul>
             </div>
           </div>
           <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-[13px] text-zinc-500">
             <span>© {new Date().getFullYear()} {businessName}</span>
-            <Link href="/login" className="transition-colors hover:text-gold">
-              Área de administración
-            </Link>
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              <Link href="/terminos" className="transition-colors hover:text-gold">
+                Términos y Condiciones
+              </Link>
+              <Link href="/privacidad" className="transition-colors hover:text-gold">
+                Política de Privacidad
+              </Link>
+              <Link href="/login" className="transition-colors hover:text-gold">
+                Área de administración
+              </Link>
+            </div>
           </div>
         </div>
       </footer>

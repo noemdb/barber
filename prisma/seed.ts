@@ -105,9 +105,14 @@ async function main() {
     where: { id: "settings" },
     update: {
       businessName: "Barber Shop Central",
+      tagline: "Barbería premium",
+      description:
+        "Cortes de cabello, barba y degradados de precisión. Reserva tu cita online en minutos con los mejores barberos.",
       phone: "+58 412 000 0000",
+      whatsapp: "+58 412 000 0000",
       email: "hola@barbershop.local",
       address: "Centro, San Felipe",
+      mapsUrl: "https://maps.google.com/?q=San+Felipe,+Venezuela",
       currency: "USD",
       timezone: "America/Caracas",
       appointmentSlot: 30,
@@ -115,14 +120,66 @@ async function main() {
     create: {
       id: "settings",
       businessName: "Barber Shop Central",
+      tagline: "Barbería premium",
+      description:
+        "Cortes de cabello, barba y degradados de precisión. Reserva tu cita online en minutos con los mejores barberos.",
       phone: "+58 412 000 0000",
+      whatsapp: "+58 412 000 0000",
       email: "hola@barbershop.local",
       address: "Centro, San Felipe",
+      mapsUrl: "https://maps.google.com/?q=San+Felipe,+Venezuela",
       currency: "USD",
       timezone: "America/Caracas",
       appointmentSlot: 30,
     },
   });
+
+  const businessId = "settings";
+
+  const hourCount = await prisma.businessHour.count({ where: { businessId } });
+  if (hourCount === 0) {
+    const defaultHours = [
+      { dayOfWeek: 1, openTime: "08:00", closeTime: "18:00" },
+      { dayOfWeek: 2, openTime: "08:00", closeTime: "18:00" },
+      { dayOfWeek: 3, openTime: "08:00", closeTime: "18:00" },
+      { dayOfWeek: 4, openTime: "08:00", closeTime: "18:00" },
+      { dayOfWeek: 5, openTime: "08:00", closeTime: "18:00" },
+      { dayOfWeek: 6, openTime: "09:00", closeTime: "17:00" },
+    ];
+    await prisma.businessHour.createMany({
+      data: defaultHours.map((h) => ({ ...h, businessId, updatedAt: new Date() })),
+    });
+  }
+
+  const testimonialCount = await prisma.testimonial.count({ where: { businessId } });
+  if (testimonialCount === 0) {
+    const defaultTestimonials = [
+      {
+        order: 0,
+        author: "Carlos Pérez",
+        role: "Cliente frecuente",
+        quote: "Saliendo del local con el mejor fade de la ciudad. Atención de primer nivel, de principio a fin.",
+        rating: 5,
+      },
+      {
+        order: 1,
+        author: "Miguel Rodríguez",
+        role: "Cliente",
+        quote: "Agendar fue facilísimo y siempre respetan la hora. Una experiencia de lujo.",
+        rating: 5,
+      },
+      {
+        order: 2,
+        author: "Pedro Sánchez",
+        role: "Cliente",
+        quote: "El equipo sabe exactamente lo que hace; el trato es impecable en cada visita.",
+        rating: 5,
+      },
+    ];
+    await prisma.testimonial.createMany({
+      data: defaultTestimonials.map((t) => ({ ...t, businessId, updatedAt: new Date() })),
+    });
+  }
 
   const adminPasswordHash = await hash(ADMIN_PASSWORD);
   const admin = await prisma.user.upsert({
@@ -245,7 +302,9 @@ async function main() {
   ]);
 
   console.log("Seed completo:");
-  console.log(`  Negocio: Barber Shop Central (${await prisma.businessSettings.count()} registro)`);
+  console.log(
+    `  Negocio: ${(await prisma.businessSettings.findFirst())?.businessName ?? "Barber Shop Central"} (${await prisma.businessSettings.count()} registro, ${await prisma.businessHour.count()} horarios, ${await prisma.testimonial.count()} testimonios)`,
+  );
   console.log(`  Usuarios: ${users} (admin: ${ADMIN_EMAIL}/${ADMIN_PASSWORD}; barbero: ${BARBER_EMAIL}/${BARBER_PASSWORD})`);
   console.log(`  Barberos: ${allBarbers}`);
   console.log(`  Servicios: ${allServices}`);

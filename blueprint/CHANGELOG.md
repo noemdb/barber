@@ -977,6 +977,56 @@ detalle, desactivación con confirmación y acciones visibles en la tabla.
 
 ---
 
+## 2026-08-28 · Cambio 21 — Panel de configuración del negocio (Settings) expansivo
+
+### Objetivo
+
+Convertir `/settings` de solo lectura a un panel editable que gestiona identidad, marca,
+contacto, horarios y testimonios, y consumir esos datos en el landing y el shell del dashboard.
+
+### Qué se hizo
+
+- Modelo: ampliado `BusinessSettings` (logo/favicon/hero/tagline/descripción, whatsapp, maps,
+  redes) y creados `BusinessHour` y `Testimonial`. Migración no destructiva (+ columnas nullable,
+  + 2 tablas).
+- API `app/api/settings/route.ts`: `GET` (lectura) y `PATCH` (reemplazo transaccional de
+  escalares + horarios + testimonios) con validación `zod` (`lib/settings.schema.ts`) y
+  `requireRole("OWNER","ADMIN")`. El `timezone` invalida el cache (`resetBusinessTimezoneCache`).
+- UploadThing: nuevo endpoint `brandingUploader` (imagen, 4MB).
+- Landing (`app/page.tsx`): hero/tagline/imagen, sección contacto (WhatsApp + maps), footer con
+  horarios dinámicos y testimonios desde la DB.
+- Shell: `sidebar.tsx` y `nav.tsx` usan `businessName`/`logoUrl` dinámicos (antes va hardcodeado
+  "Barber Shop Central"); el layout del dashboard los pasa por props.
+- `/settings` reescrito como client component con tarjetas (identidad, imágenes, contacto,
+  operación, horarios, testimonios) + componentes `business-hours-editor` y
+  `testimonials-editor`.
+
+### Archivos
+
+| Archivo | Acción |
+| --- | --- |
+| `prisma/schema.prisma` | BusinessSettings ampliado + BusinessHour + Testimonial |
+| `prisma/migrations/20260828192446_expand_settings/` | migración (no destructiva) |
+| `prisma/seed.ts` | poblados campos nuevos + horarios + testimonios |
+| `lib/settings.schema.ts` | esquemas zod (nuevo) |
+| `app/api/settings/route.ts` | GET/PATCH (nuevo) |
+| `app/api/uploadthing/core.ts` | + `brandingUploader` |
+| `app/page.tsx` | hero/contacto/footer/testimonios dinámicos |
+| `app/(dashboard)/layout.tsx` | pasa `businessName`/`logoUrl` |
+| `components/sidebar.tsx` | nombre/logo dinámicos |
+| `components/landing/nav.tsx` | logo opcional |
+| `components/settings/*` | editores de horarios y testimonios (nuevos) |
+| `app/(dashboard)/settings/page.tsx` | reescrito como formulario client |
+
+### Verificación
+
+- `npm run typecheck`: OK para el alcance de este cambio; el repo presenta errores ajenos en
+  `app/(legal)/` (en desarrollo paralelo).
+- `npm run lint`: OK para este alcance; repositorio lo bloquea `app/(legal)/` (en paralelo).
+- `npm run build`: pendiente (depende de resolver `app/(legal)/`).
+
+---
+
 ## Deuda técnica pendiente (orden sugerido)
 
 1. API de pagos (`Payment` en schema, sin endpoint/UI) + registro de cobro atómico (`$transaction`,

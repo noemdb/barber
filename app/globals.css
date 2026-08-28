@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
   --font-display: var(--font-oswald);
   --font-sans: var(--font-manrope);
@@ -25,6 +27,41 @@
 :root { --sidebar: 252px; }
 html { scroll-behavior: smooth; scroll-padding-top: 92px; }
 html, body { min-height: 100%; overflow-x: clip; }
-body { background: #f7f7f8; color: #18181b; font-family: var(--font-sans); }
+
+[data-theme="light"] {
+  --surface-base: #fafafa;
+  --surface-raised: #ffffff;
+  --surface-muted: #f4f4f5;
+  --surface-sunken: #f4f4f5;
+  --border-subtle: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #a1a1aa;
+  --accent: var(--color-gold);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --surface-base: #09090b;
+  --surface-raised: #18181b;
+  --surface-muted: #27272a;
+  --surface-sunken: #0a0a0c;
+  --border-subtle: #27272a;
+  --border-strong: #3f3f46;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --accent: var(--color-gold-light);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
 button, input, select, textarea { outline: none; }
-* { scrollbar-width: thin; scrollbar-color: #d4d4d8 transparent; }
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Menu, Scissors, X } from "lucide-react";
 
@@ -11,7 +12,7 @@ const links = [
   { label: "Contacto", href: "#contacto" },
 ];
 
-export default function LandingNav({ businessName }: { businessName: string }) {
+export default function LandingNav({ businessName, logoUrl }: { businessName: string; logoUrl?: string | null }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -28,8 +29,12 @@ export default function LandingNav({ businessName }: { businessName: string }) {
     >
       <nav className="mx-auto flex min-w-0 max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <Link href="/" className="flex min-w-0 items-center gap-2.5">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-gold/40 bg-gold/10 text-gold">
-            <Scissors size={16} />
+          <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-gold/40 bg-gold/10 text-gold">
+            {logoUrl ? (
+              <Image src={logoUrl} alt={businessName} width={36} height={36} className="h-full w-full object-cover" />
+            ) : (
+              <Scissors size={16} />
+            )}
           </div>
           <div className="min-w-0 leading-tight">
             <div className="truncate font-display text-base font-semibold uppercase tracking-tight">{businessName}</div>
