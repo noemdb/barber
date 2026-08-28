@@ -75,7 +75,7 @@ export default async function Home() {
   const featured = barbers[0];
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
+    <main className="min-h-screen w-full min-w-0 overflow-x-clip bg-zinc-950 text-white">
       <LandingNav businessName={businessName} />
 
       <section className="relative overflow-hidden">
@@ -201,7 +201,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <div className="relative overflow-hidden border-y border-gold/20 bg-zinc-900/40 py-3">
+      <div className="relative overflow-x-clip border-y border-gold/20 bg-zinc-900/40 py-3">
         <div className="flex w-max animate-marquee">
           {[0, 1].map((dup) => (
             <div key={dup} className="flex shrink-0 items-center">

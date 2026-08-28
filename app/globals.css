@@ -24,7 +24,7 @@
 
 :root { --sidebar: 252px; }
 html { scroll-behavior: smooth; scroll-padding-top: 92px; }
-html, body { min-height: 100%; }
-body { background: #f7f7f8; color: #18181b; font-family: var(--font-sans); overflow-x: hidden; }
+html, body { min-height: 100%; overflow-x: clip; }
+body { background: #f7f7f8; color: #18181b; font-family: var(--font-sans); }
 button, input, select, textarea { outline: none; }
 * { scrollbar-width: thin; scrollbar-color: #d4d4d8 transparent; }
