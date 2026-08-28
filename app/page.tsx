@@ -269,11 +269,11 @@ export default async function Home() {
           </p>
         </Reveal>
 
-        <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {barbers.map((barber, i) => (
             <Reveal key={barber.id} delay={i * 70}>
-              <div className="group relative flex items-center gap-4 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-zinc-900 to-zinc-950 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-gold/40">
-                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold-light via-gold to-gold-dark font-display text-sm font-semibold text-zinc-950 shadow-[0_4px_20px_rgba(200,164,92,0.25)] transition-transform duration-300 group-hover:scale-105">
+              <div className="group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-zinc-900 to-zinc-950 p-3 transition-all duration-300 hover:-translate-y-1 hover:border-gold/40 sm:gap-4 sm:p-4">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold-light via-gold to-gold-dark font-display text-sm font-semibold text-zinc-950 shadow-[0_4px_20px_rgba(200,164,92,0.25)] transition-transform duration-300 group-hover:scale-105 sm:h-14 sm:w-14">
                   {barber.avatar ? (
                     <Image
                       src={barber.avatar}
@@ -287,16 +287,20 @@ export default async function Home() {
                     <div className="text-zinc-950/60">{initials(barber.name)}</div>
                   )}
                 </div>
-                <div className="min-w-0">
-                  <div className="truncate font-display text-lg font-medium uppercase tracking-tight">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-display text-sm font-medium uppercase tracking-tight sm:text-lg">
                     {barber.name}
                   </div>
                   {barber.specialty && (
-                    <div className="mt-0.5 truncate text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                    <div className="mt-0.5 min-w-0 break-words text-[9px] uppercase tracking-[0.15em] text-zinc-500 sm:text-[11px]">
                       {barber.specialty}
                     </div>
                   )}
-                  {barber.phone && <div className="mt-1 break-words text-xs text-zinc-600">{barber.phone}</div>}
+                  {barber.phone && (
+                    <div className="mt-1 hidden text-[10px] text-zinc-600 sm:block sm:text-xs">
+                      {barber.phone}
+                    </div>
+                  )}
                 </div>
               </div>
             </Reveal>
