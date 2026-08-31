@@ -15,17 +15,16 @@ export async function sendTelegramMessage(chatId: string, text: string): Promise
 
   const url = `${TELEGRAM_API_BASE}/bot${token}/sendMessage`;
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
 
+  try {
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
       signal: controller.signal,
     });
-    clearTimeout(timeout);
 
     if (response.ok) return { ok: true };
 
@@ -44,5 +43,7 @@ export async function sendTelegramMessage(chatId: string, text: string): Promise
   } catch (err) {
     console.error("[telegram] fallo de red", err);
     return { ok: false, errorReason: "NETWORK" };
+  } finally {
+    clearTimeout(timeout);
   }
 }
