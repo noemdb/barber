@@ -493,7 +493,7 @@ export default async function Home() {
                 title="Mapa de ubicación"
                 src={
                   settings?.mapsUrl
-                    ? `https://maps.google.com/maps?q=${encodeURIComponent(settings.address ?? businessName)}&t=m&z=17&output=embed&iwloc=near`
+                    ? `https://maps.google.com/maps?q=10.3369782,-68.732265&z=17&output=embed&t=m&iwloc=near`
                     : ""
                 }
                 loading="lazy"
