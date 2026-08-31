@@ -36,7 +36,7 @@
 
 ## 2. Modelo de datos
 
-**No se necesita ninguna migración** para la Opción A (chat_id en variable de entorno). El esquema real ya tiene todo lo necesario para armar el mensaje:
+**No se necesita migración para armar el mensaje** — el esquema real ya tiene todo lo necesario. La única migración es la de Opción B (añadir `BusinessSettings.telegramChatId`, sección 5). El modelo de cita:
 
 ```prisma
 model Appointment {
@@ -226,6 +226,7 @@ export function toTelegramEvent(appointment: AppointmentWithRelations): Appointm
 ```typescript
 // lib/telegram/notify-appointment.ts
 import { getBusinessTimezone } from "@/lib/time";
+import { getTelegramChatId } from "./chat-id";
 import { sendTelegramMessage } from "./notifier";
 import { buildNotificationText } from "./templates";
 import {
@@ -242,9 +243,9 @@ export async function notifyAppointmentEvent(
   const type = NotificationTypeSchema.parse(rawType);
   const event = AppointmentEventSchema.parse(rawEvent);
 
-  const chatId = process.env.TELEGRAM_CHAT_ID; // ver sección 5, Opción A
+  const chatId = await getTelegramChatId(); // settings (BD) > TELEGRAM_CHAT_ID, ver sección 5
   if (!chatId) {
-    console.error("[telegram] TELEGRAM_CHAT_ID no configurado, se omite notificación");
+    console.error("[telegram] sin chat_id configurado (settings o TELEGRAM_CHAT_ID), se omite notificación");
     return;
   }
 
@@ -286,11 +287,9 @@ TELEGRAM_CHAT_ID=-1001234567890
 
 ## 5. Fuente del chat_id
 
-### Opción A (recomendada para empezar) — variable de entorno fija
+**Implementado:** Opción B (chat_id editable desde la página de settings), con **fallback** a la variable de entorno `TELEGRAM_CHAT_ID`. El orquestador (3.4) resuelve el chat en cada envío llamando a `getTelegramChatId()`.
 
-Simple; cambiar el chat_id requiere redeploy. Es la que usa el orquestador de la sección 3.4.
-
-### Opción B — editable desde el panel de admin (extensión)
+### Opción B — editable desde el panel de admin (implementada)
 
 Aquí **no** se crea una tabla nueva: se extiende la configuración de negocio que ya existe y ya tiene página de admin.
 
@@ -324,6 +323,12 @@ const chatId = await getTelegramChatId();
 ```
 
 Y se expone un campo editable en la página existente `app/(dashboard)/settings/page.tsx` + `app/api/settings/route.ts` (el `BusinessSettings` ya se guarda ahí; solo se agrega el campo al schema de edición). Ver sección 8, criterio 4.
+
+La API además expone `telegramEnvChatId` (valor de `TELEGRAM_CHAT_ID`) y `telegramEffectiveChatId` (settings → env) para que la UI muestre la fuente en uso. Ver sección 8, criterio 4.
+
+### Opción A — variable de entorno fija (fallback)
+
+Sigue disponible como **fallback**: si `BusinessSettings.telegramChatId` es `null`/vacío, `getTelegramChatId()` devuelve `process.env.TELEGRAM_CHAT_ID`.
 
 ---
 
@@ -420,7 +425,8 @@ Ojo: en `APPOINTMENT_CREATED` la notificación corre dentro de `after()`, que ya
 
 ## 8. Criterios de aceptación (entorno real)
 
-- [ ] Existe una sola fuente de verdad para el `chat_id` (env var, o `BusinessSettings` si se adopta Opción B).
+- [x] Una sola fuente de verdad para el `chat_id`: `BusinessSettings.telegramChatId`, con fallback a `TELEGRAM_CHAT_ID`. `getTelegramChatId()` resuelve en cada envío (criterio 1 cumplido vía Opción B).
+- [x] `app/(dashboard)/settings/page.tsx` muestra un campo editable "Chat ID de Telegram" que persiste en `BusinessSettings`; la UI indica la fuente activa (ajustes o `TELEGRAM_CHAT_ID`) usando `telegramEnvChatId`/`telegramEffectiveChatId` de `GET`/`PATCH /api/settings`.
 - [ ] Al crear una cita llega un mensaje `APPOINTMENT_CREATED` al chat configurado, con cliente, servicio, barbero y fecha (en la zona horaria del negocio).
 - [ ] Al cambiar `status` a `CONFIRMED` (vía PATCH) llega `APPOINTMENT_CONFIRMED`, distinto al de creación.
 - [ ] Al cambiar `status` a `COMPLETED` (vía PATCH) llega `APPOINTMENT_COMPLETED`.
@@ -444,6 +450,6 @@ Crear bot con BotFather, agregarlo al chat/grupo de staff, obtener `chat_id` ví
 **Fase 3 — Integración (medio día)**
 Conectar en `POST /api/appointments` (crear) y en `PATCH /api/appointments/[id]` (confirmar/completar) vía `after()`. Validar el caso sin `TELEGRAM_CHAT_ID` (no rompe el flujo).
 
-**Fase 4 — Opcional:** migrar a Opción B (`BusinessSettings.telegramChatId` + campo en `app/(dashboard)/settings/page.tsx` + `app/api/settings/route.ts`) para cambiar el chat destino sin redeploy.
+**Fase 4 — ✅ Completada:** Opción B (`BusinessSettings.telegramChatId` + campo en `app/(dashboard)/settings/page.tsx` + `app/api/settings/route.ts` + `lib/telegram/chat-id.ts`) — el chat destino se cambia sin redeploy; fallback a `TELEGRAM_CHAT_ID`.
 
 **Fase 5 (futuro, fuera de alcance)** — Canal de notificación propio para clientes (WhatsApp Business / SMS / email — a definir).
