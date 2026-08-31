@@ -52,6 +52,7 @@ export const SettingsUpdateInput = z.object({
   currency: currencySchema.optional(),
   timezone: timezoneSchema.optional(),
   appointmentSlot: z.number().int().min(5).max(240).optional(),
+  telegramChatId: nullableText.optional(),
   businessHours: z
     .array(
       z.object({

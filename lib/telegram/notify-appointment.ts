@@ -1,4 +1,5 @@
 import { getBusinessTimezone } from "@/lib/time";
+import { getTelegramChatId } from "./chat-id";
 import { sendTelegramMessage } from "./notifier";
 import { buildNotificationText } from "./templates";
 import {
@@ -15,9 +16,9 @@ export async function notifyAppointmentEvent(
   const type = NotificationTypeSchema.parse(rawType);
   const event = AppointmentEventSchema.parse(rawEvent);
 
-  const chatId = process.env.TELEGRAM_CHAT_ID;
+  const chatId = await getTelegramChatId();
   if (!chatId) {
-    console.error("[telegram] TELEGRAM_CHAT_ID no configurado, se omite notificación");
+    console.error("[telegram] sin chat_id configurado (settings o TELEGRAM_CHAT_ID), se omite notificación");
     return;
   }
 

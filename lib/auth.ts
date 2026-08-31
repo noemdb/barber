@@ -9,14 +9,25 @@ const secret = new TextEncoder().encode(process.env.AUTH_SECRET || "development-
 
 type Session = { sub: string; role: string; name: string; email: string };
 
-export async function createSession(user: Session) {
+export async function createSession(user: Session, secure = false) {
   const token = await new SignJWT(user)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
     .sign(secret);
   const store = await cookies();
-  store.set(COOKIE, token, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 7 });
+  store.set(COOKIE, token, { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: 60 * 60 * 24 * 7 });
+}
+
+/**
+ * Detect whether the client is connecting over HTTPS.
+ * Prefers the `x-forwarded-proto` header set by TLS-terminating proxies,
+ * falling back to the scheme of the incoming request URL.
+ */
+export function isSecureRequest(request: Request): boolean {
+  const proto = request.headers.get("x-forwarded-proto");
+  if (proto) return proto.split(",")[0].trim().toLowerCase() === "https";
+  return new URL(request.url).protocol === "https:";
 }
 
 export async function destroySession() {

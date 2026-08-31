@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { getTelegramChatId } from "./chat-id";
 import { sendTelegramMessage } from "./notifier";
 import { notifyAppointmentEvent } from "./notify-appointment";
 import type { AppointmentEvent } from "./schemas";
 
+vi.mock("./chat-id", () => ({ getTelegramChatId: vi.fn() }));
 vi.mock("./notifier", () => ({ sendTelegramMessage: vi.fn() }));
 vi.mock("@/lib/time", () => ({ getBusinessTimezone: vi.fn(async () => "America/Caracas") }));
 
@@ -19,14 +21,14 @@ describe("notifyAppointmentEvent", () => {
     vi.clearAllMocks();
   });
 
-  it("omits the send when TELEGRAM_CHAT_ID is not set", async () => {
-    delete process.env.TELEGRAM_CHAT_ID;
+  it("omits the send when no chat id is configured", async () => {
+    vi.mocked(getTelegramChatId).mockResolvedValue(null);
     await expect(notifyAppointmentEvent("APPOINTMENT_CREATED", event)).resolves.toBeUndefined();
     expect(sendTelegramMessage).not.toHaveBeenCalled();
   });
 
   it("sends the message to the configured chat", async () => {
-    process.env.TELEGRAM_CHAT_ID = "-100123";
+    vi.mocked(getTelegramChatId).mockResolvedValue("-100123");
     vi.mocked(sendTelegramMessage).mockResolvedValue({ ok: true });
     await notifyAppointmentEvent("APPOINTMENT_CREATED", event);
     expect(sendTelegramMessage).toHaveBeenCalledWith(
@@ -36,7 +38,7 @@ describe("notifyAppointmentEvent", () => {
   });
 
   it("does not throw when Telegram fails", async () => {
-    process.env.TELEGRAM_CHAT_ID = "-100123";
+    vi.mocked(getTelegramChatId).mockResolvedValue("-100123");
     vi.mocked(sendTelegramMessage).mockResolvedValue({ ok: false, errorReason: "NETWORK" });
     await expect(notifyAppointmentEvent("APPOINTMENT_CREATED", event)).resolves.toBeUndefined();
   });
