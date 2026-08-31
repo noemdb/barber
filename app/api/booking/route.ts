@@ -7,8 +7,11 @@ import { createAppointment, type AppointmentRepository } from "@/lib/services/ap
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { notifyAppointmentEvent } from "@/lib/telegram/notify-appointment";
 import { toTelegramEvent } from "@/lib/telegram/event";
+import type { Prisma } from "@/app/generated/prisma/client";
 
-type CreatedAppointment = Awaited<ReturnType<typeof prisma.appointment.create>>;
+type CreatedAppointment = Prisma.AppointmentGetPayload<{
+  include: { client: true; barber: true; service: true };
+}>;
 
 const bookingRepo: AppointmentRepository<CreatedAppointment> = {
   getService: (serviceId) =>
