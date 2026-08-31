@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { withApi } from "@/lib/api";
 import { DomainError, ErrorCodes } from "@/lib/errors";
 import { registerSchema } from "@/lib/validations";
-import { createSession } from "@/lib/auth";
+import { createSession, isSecureRequest } from "@/lib/auth";
 import { hash } from "@/prisma/seed-hash";
 
 export async function POST(request: Request) {
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       await prisma.client.create({ data: { name: body.name.trim(), email } });
     }
 
-    await createSession({ sub: user.id, role: user.role, name: user.name, email: user.email });
+    await createSession({ sub: user.id, role: user.role, name: user.name, email: user.email }, isSecureRequest(request));
     return { data: { ok: true, role: user.role } };
   });
 }

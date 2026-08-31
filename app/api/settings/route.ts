@@ -7,6 +7,14 @@ import { resetBusinessTimezoneCache } from "@/lib/time";
 
 const DEFAULT_ID = "settings";
 
+function telegramChatPayload(settings: { telegramChatId: string | null } | null) {
+  const envChatId = process.env.TELEGRAM_CHAT_ID ?? null;
+  return {
+    telegramEnvChatId: envChatId,
+    telegramEffectiveChatId: settings?.telegramChatId ?? envChatId,
+  };
+}
+
 async function fetchSettingsPayload(id: string) {
   const [settings, businessHours, testimonials] = await Promise.all([
     prisma.businessSettings.findUnique({ where: { id } }),
@@ -22,7 +30,8 @@ export async function GET() {
     const existing = await prisma.businessSettings.findFirst();
     const id = existing?.id ?? DEFAULT_ID;
     const payload = await fetchSettingsPayload(id);
-    return { data: { ...payload, settings: payload.settings ?? null, businessHours: payload.businessHours ?? [], testimonials: payload.testimonials ?? [] } };
+    const { telegramEnvChatId, telegramEffectiveChatId } = telegramChatPayload(payload.settings);
+    return { data: { ...payload, settings: payload.settings ?? null, businessHours: payload.businessHours ?? [], testimonials: payload.testimonials ?? [], telegramEnvChatId, telegramEffectiveChatId } };
   });
 }
 
@@ -74,6 +83,7 @@ export async function PATCH(request: Request) {
     }
 
     const payload = await fetchSettingsPayload(id);
-    return { data: { ...payload } };
+    const { telegramEnvChatId, telegramEffectiveChatId } = telegramChatPayload(payload.settings);
+    return { data: { ...payload, telegramEnvChatId, telegramEffectiveChatId } };
   });
 }

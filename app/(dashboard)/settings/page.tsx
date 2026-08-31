@@ -27,6 +27,7 @@ type ScalarSettings = {
   currency: string;
   timezone: string;
   appointmentSlot: string;
+  telegramChatId: string;
 };
 
 const DEFAULTS: ScalarSettings = {
@@ -46,11 +47,12 @@ const DEFAULTS: ScalarSettings = {
   currency: "USD",
   timezone: "America/Caracas",
   appointmentSlot: "30",
+  telegramChatId: "",
 };
 
 const NULLABLE_KEYS = new Set([
   "tagline", "description", "logoUrl", "faviconUrl", "heroImageUrl", "phone", "whatsapp",
-  "email", "address", "mapsUrl", "instagramUrl", "facebookUrl",
+  "email", "address", "mapsUrl", "instagramUrl", "facebookUrl", "telegramChatId",
 ]);
 
 function normalizeHours(hours: HourEntry[]): HourEntry[] {
@@ -78,6 +80,7 @@ function pickScalars(data: Record<string, unknown>): ScalarSettings {
     currency: String(data.currency ?? "USD"),
     timezone: String(data.timezone ?? "America/Caracas"),
     appointmentSlot: String(data.appointmentSlot ?? "30"),
+    telegramChatId: String(data.telegramChatId ?? ""),
   };
 }
 
@@ -90,6 +93,7 @@ export default function SettingsPage() {
   const [testimonials, setTestimonials] = useState<TestimonialEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [envChatId, setEnvChatId] = useState<string | null>(null);
 
   const set = (key: keyof ScalarSettings, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -100,10 +104,11 @@ export default function SettingsPage() {
       .then((json) => {
         if (cancelled) return;
         if (json.success) {
-          const d = json.data as { settings: Record<string, unknown>; businessHours: HourEntry[]; testimonials: TestimonialEntry[] };
+          const d = json.data as { settings: Record<string, unknown>; businessHours: HourEntry[]; testimonials: TestimonialEntry[]; telegramEnvChatId?: string | null };
           setForm(pickScalars(d.settings ?? {}));
           setHours(normalizeHours(d.businessHours ?? []));
           setTestimonials(d.testimonials ?? []);
+          setEnvChatId(d.telegramEnvChatId ?? null);
         } else {
           toast.error(json.error?.message || "No se pudieron cargar los datos");
         }
@@ -147,10 +152,11 @@ export default function SettingsPage() {
         setSaving(false);
         return;
       }
-      const d = json.data as { settings: Record<string, unknown>; businessHours: HourEntry[]; testimonials: TestimonialEntry[] };
+      const d = json.data as { settings: Record<string, unknown>; businessHours: HourEntry[]; testimonials: TestimonialEntry[]; telegramEnvChatId?: string | null };
       setForm(pickScalars(d.settings ?? {}));
       setHours(normalizeHours(d.businessHours ?? []));
       setTestimonials(d.testimonials ?? []);
+      setEnvChatId(d.telegramEnvChatId ?? null);
       toast.success("Configuración guardada");
     } catch {
       toast.error("No se pudo guardar la configuración");
@@ -265,6 +271,31 @@ export default function SettingsPage() {
                 <option key={t} value={t} />
               ))}
             </datalist>
+          </Card>
+
+          <Card title="Notificaciones de Telegram" description="Chat que recibe los avisos de citas. Si se deja vacío se usa el valor de .env (TELEGRAM_CHAT_ID).">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Chat ID de Telegram">
+                <input
+                  value={form.telegramChatId}
+                  onChange={(e) => set("telegramChatId", e.target.value)}
+                  className={inputClass}
+                  placeholder="ej. -1001234567890"
+                />
+              </Field>
+            </div>
+            <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              Se usa:{" "}
+              <code className="rounded bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5">
+                {form.telegramChatId.trim() || envChatId || "—"}
+              </code>
+              {" · fuente: "}
+              {form.telegramChatId.trim()
+                ? "ajustes"
+                : envChatId
+                  ? "variable de entorno (TELEGRAM_CHAT_ID)"
+                  : "ninguna"}
+            </p>
           </Card>
 
           <Card title="Horarios" description="Días y horas laborables (mostrados en el footer).">

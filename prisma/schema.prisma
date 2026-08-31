@@ -144,6 +144,7 @@ model BusinessSettings {
   currency        String   @default("USD")
   timezone        String   @default("America/Caracas")
   appointmentSlot Int      @default(30)
+  telegramChatId  String?
   hours           BusinessHour[]
   testimonials    Testimonial[]
   createdAt       DateTime @default(now())
