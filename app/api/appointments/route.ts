@@ -2,12 +2,17 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/permissions";
 import { requireRole } from "@/lib/permissions";
 import { withApi } from "@/lib/api";
+import { after } from "next/server";
+import { notifyAppointmentEvent } from "@/lib/telegram/notify-appointment";
+import { toTelegramEvent } from "@/lib/telegram/event";
 import { appointmentCreateSchema } from "@/lib/validations";
 import { createAppointment, type AppointmentRepository } from "@/lib/services/appointment-service";
 import { getBusinessTimezone, zonedDayStartUtc, zonedDayEndUtc } from "@/lib/time";
 import type { Prisma } from "@/app/generated/prisma/client";
 
-type CreatedAppointment = Awaited<ReturnType<typeof prisma.appointment.create>>;
+type CreatedAppointment = Prisma.AppointmentGetPayload<{
+  include: { client: true; barber: true; service: true };
+}>;
 
 const appointmentRepo: AppointmentRepository<CreatedAppointment> = {
   getService: (serviceId) => prisma.service.findUnique({ where: { id: serviceId } }),
@@ -72,6 +77,9 @@ export async function POST(request: Request) {
       startsAt: new Date(body.startsAt),
       notes: body.notes ?? null,
     });
+
+    after(() => notifyAppointmentEvent("APPOINTMENT_CREATED", toTelegramEvent(data)));
+
     return { data, status: 201 };
   });
 }
