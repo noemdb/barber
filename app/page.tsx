@@ -78,7 +78,7 @@ export default async function Home() {
   ].filter((s) => s.href) as { label: string; href: string }[];
 
   return (
-    <main className="min-h-screen w-full min-w-0 overflow-x-clip bg-zinc-950 text-white">
+    <main data-theme="dark" className="min-h-screen w-full min-w-0 overflow-x-clip bg-zinc-950 text-white">
       <LandingNav businessName={businessName} logoUrl={settings?.logoUrl} />
 
       <section className="relative overflow-hidden">
@@ -479,6 +479,53 @@ export default async function Home() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-6xl px-6 py-14 md:py-16">
+        <Reveal>
+          <Eyebrow>Ubicación</Eyebrow>
+          <h2 className="mt-3 font-display text-4xl font-semibold uppercase tracking-tight md:text-5xl">
+            Visítanos
+          </h2>
+        </Reveal>
+        <Reveal delay={100}>
+          <div className="mt-7 overflow-hidden rounded-[2rem] border border-gold/30 bg-zinc-900">
+            <div className="h-[320px] w-full overflow-hidden md:h-[420px]">
+              <iframe
+                title="Mapa de ubicación"
+                src={
+                  settings?.mapsUrl
+                    ? `https://maps.google.com/maps?q=${encodeURIComponent(settings.address ?? businessName)}&t=m&z=17&output=embed&iwloc=near`
+                    : ""
+                }
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="h-full w-full border-0 saturate-[85%]"
+                style={{ filter: "invert(0.92) hue-rotate(180deg) brightness(0.9) contrast(0.9)" }}
+                allowFullScreen
+              />
+            </div>
+            {settings?.address && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-6 py-4">
+                <div className="flex items-center gap-2 text-sm text-zinc-300">
+                  <MapPin size={16} className="text-gold" />
+                  <span className="break-words">{settings.address}</span>
+                </div>
+                {settings?.mapsUrl && (
+                  <a
+                    href={settings.mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-10 items-center gap-2 rounded-full border border-gold/40 px-5 text-sm font-medium text-gold transition-all hover:bg-gold/10"
+                  >
+                    Ver ruta
+                    <ArrowRight size={14} />
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        </Reveal>
+      </section>
+
       <footer className="border-t border-white/10 bg-zinc-950">
         <div className="mx-auto max-w-6xl px-6 py-10">
           <div className="grid gap-8 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
@@ -558,6 +605,36 @@ export default async function Home() {
               </Link>
             </div>
           </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-[13px] text-zinc-500">
+            <span>
+              WebMaster:{" "}
+              <a href="https://github.com/noemdb" className="transition-colors hover:text-gold">
+                @noemdb
+              </a>
+            </span>
+            <a
+              href="https://wa.me/584121560804"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors hover:text-gold"
+            >
+              WhatsApp: +584121560804
+            </a>
+          </div>
+          <p className="mt-3 border-t border-white/10 pt-4 text-center text-[12px] text-zinc-600">
+            © {new Date().getFullYear()} {businessName} — Todos los derechos reservados.
+            <br />
+            Este sitio está bajo la licencia{" "}
+            <a
+              href="https://opensource.org/license/mit"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors hover:text-gold"
+            >
+              MIT
+            </a>
+            .
+          </p>
         </div>
       </footer>
 

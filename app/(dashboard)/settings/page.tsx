@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Image as ImageIcon, Loader2, RefreshCw, Save, X } from "lucide-react";
+import { Image as ImageIcon, Loader2, RefreshCw, Save, Send, X } from "lucide-react";
 import { generateReactHelpers } from "@uploadthing/react";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
 import { BusinessHoursEditor, type HourEntry } from "@/components/settings/business-hours-editor";
@@ -87,13 +87,23 @@ function pickScalars(data: Record<string, unknown>): ScalarSettings {
 const inputClass =
   "mt-1.5 h-10 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm text-zinc-900 dark:text-zinc-100 outline-none";
 
+type TabId = "general" | "notificaciones" | "horarios" | "testimonios";
+const TABS: { id: TabId; label: string }[] = [
+  { id: "general", label: "General" },
+  { id: "notificaciones", label: "Notificaciones" },
+  { id: "horarios", label: "Horarios" },
+  { id: "testimonios", label: "Testimonios" },
+];
+
 export default function SettingsPage() {
   const [form, setForm] = useState<ScalarSettings>(DEFAULTS);
   const [hours, setHours] = useState<HourEntry[]>(normalizeHours([]));
   const [testimonials, setTestimonials] = useState<TestimonialEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [envChatId, setEnvChatId] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabId>("general");
 
   const set = (key: keyof ScalarSettings, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -165,21 +175,45 @@ export default function SettingsPage() {
     }
   }
 
+  async function testTelegram() {
+    setTesting(true);
+    try {
+      const chatId = form.telegramChatId.trim() || undefined;
+      const r = await fetch("/api/telegram/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId }),
+      });
+      const json = await r.json();
+      if (!json.success) {
+        toast.error(json.error?.message || "No se pudo enviar la prueba");
+        return;
+      }
+      const d = json.data as {
+        ok: boolean;
+        message: string;
+        chatId?: string | null;
+        source?: string;
+      };
+      if (d.ok) {
+        toast.success(d.message);
+      } else {
+        toast.error(d.message, {
+          description: d.chatId ? `chat_id: ${d.chatId} · fuente: ${d.source}` : undefined,
+        });
+      }
+    } catch {
+      toast.error("No se pudo conectar con el servidor de prueba");
+    } finally {
+      setTesting(false);
+    }
+  }
+
   return (
-    <form onSubmit={save} className="max-w-4xl space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Configuración</h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Identidad, contacto, marca y operación del negocio.</p>
-        </div>
-        <button
-          type="submit"
-          disabled={saving || loading}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-zinc-950 dark:bg-gold px-5 text-sm font-semibold text-white dark:text-zinc-950 transition-colors hover:bg-zinc-800 dark:hover:bg-gold-light disabled:opacity-50"
-        >
-          {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-          Guardar cambios
-        </button>
+    <form onSubmit={save} className="w-full px-4 space-y-5">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Configuración</h1>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Identidad, contacto, marca y operación del negocio.</p>
       </div>
 
       {loading ? (
@@ -190,7 +224,11 @@ export default function SettingsPage() {
         </div>
       ) : (
         <>
-          <Card title="Identidad" description="Nombre y textos que se muestran en la web y el panel.">
+          <NavTabs value={tab} onChange={setTab} />
+
+          {tab === "general" && (
+            <>
+              <Card title="Identidad" description="Nombre y textos que se muestran en la web y el panel.">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Nombre del negocio">
                 <input required value={form.businessName} onChange={(e) => set("businessName", e.target.value)} className={inputClass} />
@@ -272,8 +310,11 @@ export default function SettingsPage() {
               ))}
             </datalist>
           </Card>
+            </>
+          )}
 
-          <Card title="Notificaciones de Telegram" description="Chat que recibe los avisos de citas. Si se deja vacío se usa el valor de .env (TELEGRAM_CHAT_ID).">
+          {tab === "notificaciones" && (
+            <Card title="Notificaciones de Telegram" description="Chat que recibe los avisos de citas. Si se deja vacío se usa el valor de .env (TELEGRAM_CHAT_ID).">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Chat ID de Telegram">
                 <input
@@ -283,6 +324,18 @@ export default function SettingsPage() {
                   placeholder="ej. -1001234567890"
                 />
               </Field>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={testTelegram}
+                  disabled={testing}
+                  title="Envía un mensaje de prueba al chat configurado"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm font-semibold text-zinc-700 dark:text-zinc-300 transition-colors hover:border-zinc-300 dark:hover:border-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  {testing ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                  Enviar prueba
+                </button>
+              </div>
             </div>
             <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
               Se usa:{" "}
@@ -297,17 +350,61 @@ export default function SettingsPage() {
                   : "ninguna"}
             </p>
           </Card>
+          )}
 
-          <Card title="Horarios" description="Días y horas laborables (mostrados en el footer).">
-            <BusinessHoursEditor value={hours} onChange={setHours} />
-          </Card>
+          {tab === "horarios" && (
+              <Card title="Horarios" description="Días y horas laborables (mostrados en el footer).">
+              <BusinessHoursEditor value={hours} onChange={setHours} />
+            </Card>
+          )}
 
-          <Card title="Testimonios" description="Lo que dicen tus clientes en la página principal.">
-            <TestimonialsEditor value={testimonials} onChange={setTestimonials} />
-          </Card>
+          {tab === "testimonios" && (
+            <Card title="Testimonios" description="Lo que dicen tus clientes en la página principal.">
+              <TestimonialsEditor value={testimonials} onChange={setTestimonials} />
+            </Card>
+          )}
         </>
       )}
+
+      {!loading && (
+        <button
+          type="submit"
+          disabled={saving || loading}
+          title="Guardar cambios"
+          className="group fixed bottom-6 right-6 z-50 inline-flex h-12 w-12 items-center justify-center rounded-full bg-zinc-950 dark:bg-gold text-white dark:text-zinc-950 shadow-lg transition-all duration-200 hover:w-auto hover:gap-2 hover:px-5 hover:bg-zinc-800 dark:hover:bg-gold-light disabled:opacity-50"
+        >
+          {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+          <span className="hidden whitespace-nowrap text-sm font-semibold group-hover:inline">Guardar cambios</span>
+        </button>
+      )}
     </form>
+  );
+}
+
+function NavTabs({ value, onChange }: { value: TabId; onChange: (tab: TabId) => void }) {
+  return (
+    <div role="tablist" className="flex w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-1">
+      {TABS.map((t) => {
+        const active = value === t.id;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            onClick={() => onChange(t.id)}
+            aria-selected={active}
+            title={t.label}
+            className={`min-w-0 flex-1 truncate rounded-lg px-2 py-2 text-xs sm:text-sm font-medium transition-colors ${
+              active
+                ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-zinc-100 font-semibold shadow-sm"
+                : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
+            }`}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
