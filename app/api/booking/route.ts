@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { withApi } from "@/lib/api";
+import { after } from "next/server";
 import { DomainError, ErrorCodes } from "@/lib/errors";
 import { bookingSchema } from "@/lib/validations";
 import { createAppointment, type AppointmentRepository } from "@/lib/services/appointment-service";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { notifyAppointmentEvent } from "@/lib/telegram/notify-appointment";
+import { toTelegramEvent } from "@/lib/telegram/event";
 
 type CreatedAppointment = Awaited<ReturnType<typeof prisma.appointment.create>>;
 
@@ -62,6 +65,8 @@ export async function POST(request: Request) {
       startsAt: new Date(body.startsAt),
       notes: "Reserva web (invitado)",
     });
+
+    after(() => notifyAppointmentEvent("APPOINTMENT_CREATED", toTelegramEvent(data)));
 
     return { data, status: 201 };
   });
