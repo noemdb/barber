@@ -81,7 +81,7 @@ export function CreateAppointmentDialog({
         <Calendar size={15} /> Registrar cita
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center p-4">
+        <div className="fixed inset-0 z-70 grid place-items-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={close} />
           <div role="dialog" aria-modal="true" aria-labelledby="create-appointment-title" className="relative w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
             <button type="button" onClick={close} aria-label="Cerrar" className="absolute right-4 top-4 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"><X size={18} /></button>

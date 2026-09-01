@@ -106,7 +106,22 @@ export default async function ReservationsPage() {
             </p>
             </div>
           </div>
-          <CreateAppointmentDialog services={services} barbers={barbers} currency={currency} />
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <CreateAppointmentDialog services={services} barbers={barbers} currency={currency} />
+            <WeeklyAvailabilityCalendar
+              weekStart={weekStart}
+              timezone={timezone}
+              barbers={barbers}
+              appointments={confirmedAppointments.map((appointment) => ({
+                id: appointment.id,
+                barberId: appointment.barberId,
+                serviceName: appointment.service.name,
+                startsAt: appointment.startsAt.toISOString(),
+                endsAt: appointment.endsAt.toISOString(),
+              }))}
+              businessHours={businessHours}
+            />
+          </div>
         </div>
       </div>
 
@@ -117,19 +132,6 @@ export default async function ReservationsPage() {
         <Stat icon={CircleDollarSign} label="Gasto total" value={money(totalSpent._sum.amountCents ?? 0, currency)} />
       </div>
 
-      <WeeklyAvailabilityCalendar
-        weekStart={weekStart}
-        timezone={timezone}
-        barbers={barbers}
-        appointments={confirmedAppointments.map((appointment) => ({
-          id: appointment.id,
-          barberId: appointment.barberId,
-          serviceName: appointment.service.name,
-          startsAt: appointment.startsAt.toISOString(),
-          endsAt: appointment.endsAt.toISOString(),
-        }))}
-        businessHours={businessHours}
-      />
       <ReservationList title="Próximas reservas" subtitle="Tus próximas citas" items={upcoming} timezone={timezone} currency={currency} />
       <ReservationList title="Historial" subtitle="Reservas pasadas" items={history} timezone={timezone} currency={currency} />
     </div>
