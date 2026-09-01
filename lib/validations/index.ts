@@ -52,6 +52,8 @@ export const appointmentCreateSchema = z.object({
   notes: optionalText,
 });
 
+export const clientAppointmentCreateSchema = appointmentCreateSchema.omit({ clientId: true });
+
 export const appointmentPatchSchema = z.object({
   status: z.enum(["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED", "NO_SHOW"]).optional(),
   notes: optionalText,
@@ -92,6 +94,32 @@ export const serviceCreateSchema = z.object({
 });
 
 export const servicePatchSchema = serviceCreateSchema.partial();
+
+export const USER_ROLES = ["OWNER", "ADMIN", "BARBER", "CLIENT"] as const;
+
+export const userCreateSchema = z.object({
+  name: z.string().trim().min(1, "El nombre es obligatorio"),
+  email: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.email("Correo electrónico inválido"),
+  ),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+  role: z.enum(USER_ROLES),
+  active: z.boolean().default(true),
+  barberId: z.string().nullish(),
+});
+
+export const userPatchSchema = z.object({
+  name: z.string().trim().min(1, "El nombre es obligatorio").optional(),
+  email: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.email("Correo electrónico inválido"),
+  ).optional(),
+  role: z.enum(USER_ROLES).optional(),
+  active: z.boolean().optional(),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").optional(),
+  barberId: z.string().nullish(),
+});
 
 export const paymentCreateSchema = z.object({
   appointmentId: z.string().cuid("ID de cita inválido"),

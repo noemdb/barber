@@ -1,14 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/permissions";
+import { getCurrentClient } from "@/lib/scope";
 import { withApi } from "@/lib/api";
+import { DomainError, ErrorCodes } from "@/lib/errors";
 import { after } from "next/server";
 import { notifyAppointmentEvent } from "@/lib/telegram/notify-appointment";
 import { toTelegramEvent } from "@/lib/telegram/event";
-import { appointmentCreateSchema } from "@/lib/validations";
+import { appointmentCreateSchema, clientAppointmentCreateSchema } from "@/lib/validations";
 import { createAppointment, type AppointmentRepository } from "@/lib/services/appointment-service";
 import { getBusinessTimezone, zonedDayStartUtc, zonedDayEndUtc } from "@/lib/time";
 import type { Prisma } from "@/app/generated/prisma/client";
-import { logModelMutation, resolveSubject } from "@/lib/binnacle";
+import { logModelMutation } from "@/lib/binnacle";
 
 type CreatedAppointment = Prisma.AppointmentGetPayload<{
   include: { client: true; barber: true; service: true };
@@ -68,17 +70,27 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   return withApi(async () => {
-    const actor = await requireRole("ADMIN", "OWNER");
-    const body = appointmentCreateSchema.parse(await request.json().catch(() => null));
+    const actor = await requireRole("ADMIN", "OWNER", "CLIENT");
+    const rawBody = await request.json().catch(() => null);
+    const body = actor.role === "CLIENT"
+      ? clientAppointmentCreateSchema.parse(rawBody)
+      : appointmentCreateSchema.parse(rawBody);
+    let clientId: string;
+    if (actor.role === "CLIENT") {
+      const client = await getCurrentClient(actor.email);
+      if (!client) throw new DomainError(ErrorCodes.NOT_FOUND, "Perfil de cliente no encontrado", 404);
+      clientId = client.id;
+    } else {
+      clientId = appointmentCreateSchema.parse(rawBody).clientId;
+    }
     const data = await createAppointment(appointmentRepo, {
-      clientId: body.clientId,
+      clientId,
       barberId: body.barberId,
       serviceId: body.serviceId,
       startsAt: new Date(body.startsAt),
       notes: body.notes ?? null,
     });
 
-    const subject = resolveSubject({ id: actor.sub, email: actor.email, role: actor.role, name: actor.name });
     await logModelMutation({
       modelName: "Appointment",
       action: "created",

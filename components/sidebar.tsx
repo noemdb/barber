@@ -6,6 +6,7 @@ import {
   BarChart3,
   CalendarDays,
   ChevronDown,
+  ClipboardList,
   LayoutDashboard,
   LogOut,
   PanelLeftClose,
@@ -13,32 +14,38 @@ import {
   Scissors,
   Settings,
   ShieldCheck,
+  UserCog,
   Users,
   X,
 } from "lucide-react";
 import { Session } from "@/types";
+import { rolesForPath } from "@/lib/roles";
+import type { UserRole } from "@/app/generated/prisma/client";
 import { useEffect, useState } from "react";
 
-type NavItem = { href: string; label: string; icon: typeof LayoutDashboard; roles: string[] };
+type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
 type NavGroup = { label: string; items: NavItem[] };
 
+// La fuente de verdad para saber qué rol ve cada ítem es `ROUTE_RULES` (lib/roles.ts).
+// Aquí solo se declara label + icono; los roles se derivan de `rolesForPath(href)`.
 const groups: NavGroup[] = [
   {
     label: "GESTIÓN",
     items: [
-      { href: "/dashboard", label: "Panel", icon: LayoutDashboard, roles: ["OWNER", "ADMIN", "BARBER"] },
-      { href: "/appointments", label: "Citas", icon: CalendarDays, roles: ["OWNER", "ADMIN", "BARBER"] },
-      { href: "/clients", label: "Clientes", icon: Users, roles: ["OWNER", "ADMIN", "BARBER"] },
-      { href: "/barbers", label: "Barberos", icon: Scissors, roles: ["OWNER", "ADMIN"] },
-      { href: "/services", label: "Servicios", icon: Scissors, roles: ["OWNER", "ADMIN"] },
+      { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
+      { href: "/appointments", label: "Citas", icon: CalendarDays },
+      { href: "/clients", label: "Clientes", icon: Users },
+      { href: "/barbers", label: "Barberos", icon: Scissors },
+      { href: "/services", label: "Servicios", icon: ClipboardList },
     ],
   },
   {
     label: "NEGOCIO",
     items: [
-      { href: "/settings", label: "Configuración", icon: Settings, roles: ["OWNER", "ADMIN"] },
-      { href: "/settings/binnacle", label: "Bitácora", icon: ShieldCheck, roles: ["OWNER", "ADMIN"] },
-      { href: "/visitantes", label: "Visitantes", icon: BarChart3, roles: ["OWNER", "ADMIN"] },
+      { href: "/settings", label: "Configuración", icon: Settings },
+      { href: "/users", label: "Usuarios", icon: UserCog },
+      { href: "/settings/binnacle", label: "Bitácora", icon: ShieldCheck },
+      { href: "/visitantes", label: "Visitantes", icon: BarChart3 },
     ],
   },
 ];
@@ -102,7 +109,7 @@ export function Sidebar({
   }
 
   const navGroups = groups
-    .map((group) => ({ ...group, items: group.items.filter((item) => item.roles.includes(session.role)) }))
+    .map((group) => ({ ...group, items: group.items.filter((item) => rolesForPath(item.href).includes(session.role as UserRole)) }))
     .filter((group) => group.items.length > 0);
 
   const initials = session.name

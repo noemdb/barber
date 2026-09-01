@@ -78,7 +78,7 @@ export function BinnacleFilter({ from, to, category, severity, q }: Props) {
           type="date"
           value={from}
           onChange={(e) => commit({ from: e.target.value })}
-          className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 [color-scheme:light_dark]"
+          className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 scheme-light-dark"
           aria-label="Fecha desde"
         />
         <span className="text-xs text-zinc-400 dark:text-zinc-500">→</span>
@@ -86,7 +86,7 @@ export function BinnacleFilter({ from, to, category, severity, q }: Props) {
           type="date"
           value={to}
           onChange={(e) => commit({ to: e.target.value })}
-          className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 [color-scheme:light_dark]"
+          className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 scheme-light-dark"
           aria-label="Fecha hasta"
         />
       </div>

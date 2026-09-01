@@ -1,11 +1,24 @@
 import { prisma } from "@/lib/prisma";
 import { requireRoleOrRedirect } from "@/lib/permissions";
 import { getCurrentClient, clientScope } from "@/lib/scope";
-import { getBusinessTimezone } from "@/lib/time";
+import { getBusinessTimezone, zonedDayEndUtc, zonedDayStartUtc, zonedNowDate } from "@/lib/time";
 import { money } from "@/lib/format";
-import { CalendarDays, CheckCircle2, CircleDollarSign, Clock3 } from "lucide-react";
+import { CreateAppointmentDialog } from "@/components/client/create-appointment-dialog";
+import { WeeklyAvailabilityCalendar } from "@/components/client/weekly-availability-calendar";
+import { CalendarDays, CheckCircle2, CircleDollarSign, Clock3, Sparkles } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+
+function addDays(date: string, days: number) {
+  const [year, month, day] = date.split("-").map(Number);
+  const result = new Date(Date.UTC(year, month - 1, day + days));
+  return result.toISOString().slice(0, 10);
+}
+
+function mondayOf(date: string) {
+  const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
+  return addDays(date, weekday === 0 ? -6 : 1 - weekday);
+}
 
 const statusClass: Record<string, string> = {
   CONFIRMED: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
@@ -42,7 +55,9 @@ export default async function ReservationsPage() {
   const scope = clientScope(client);
   const now = new Date();
   const timezone = await getBusinessTimezone();
-  const [upcoming, history, completedCount, totalSpent, settings] = await Promise.all([
+  const weekStart = mondayOf(zonedNowDate(now.getTime(), timezone));
+  const weekEnd = addDays(weekStart, 7);
+  const [upcoming, history, completedCount, totalSpent, settings, services, barbers, businessHours, confirmedAppointments] = await Promise.all([
     prisma.appointment.findMany({
       where: { ...scope, status: { in: ["PENDING", "CONFIRMED"] }, startsAt: { gte: now } },
       include: { service: true, barber: true },
@@ -60,12 +75,41 @@ export default async function ReservationsPage() {
       _sum: { amountCents: true },
     }),
     prisma.businessSettings.findFirst(),
+    prisma.service.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, durationMin: true, priceCents: true } }),
+    prisma.barber.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, specialty: true, avatar: true } }),
+    prisma.businessHour.findMany({ select: { dayOfWeek: true, openTime: true, closeTime: true } }),
+    prisma.appointment.findMany({
+      where: { status: "CONFIRMED", startsAt: { gte: zonedDayStartUtc(weekStart, timezone), lt: zonedDayEndUtc(weekEnd, timezone) } },
+      include: { barber: { select: { name: true } }, service: { select: { name: true } } },
+      orderBy: { startsAt: "asc" },
+    }),
   ]);
 
   const currency = settings?.currency || "USD";
+  const businessName = settings?.businessName || "nuestro barbershop";
+  const firstName = client.name.split(" ")[0] || "hello";
 
   return (
     <div className="space-y-5">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gold-light text-zinc-950">
+              <Sparkles size={18} />
+            </div>
+            <div className="min-w-0">
+            <h1 className="truncate text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+              ¡Hola, {firstName}! 👋
+            </h1>
+            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+              Bienvenido/a de nuevo a {businessName}. Qué gusto verte — aquí tienes el estado de tus reservas.
+            </p>
+            </div>
+          </div>
+          <CreateAppointmentDialog services={services} barbers={barbers} currency={currency} />
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat icon={CalendarDays} label="Reservas activas" value={String(upcoming.length)} />
         <Stat icon={Clock3} label="Historial" value={String(history.length)} />
@@ -73,6 +117,19 @@ export default async function ReservationsPage() {
         <Stat icon={CircleDollarSign} label="Gasto total" value={money(totalSpent._sum.amountCents ?? 0, currency)} />
       </div>
 
+      <WeeklyAvailabilityCalendar
+        weekStart={weekStart}
+        timezone={timezone}
+        barbers={barbers}
+        appointments={confirmedAppointments.map((appointment) => ({
+          id: appointment.id,
+          barberId: appointment.barberId,
+          serviceName: appointment.service.name,
+          startsAt: appointment.startsAt.toISOString(),
+          endsAt: appointment.endsAt.toISOString(),
+        }))}
+        businessHours={businessHours}
+      />
       <ReservationList title="Próximas reservas" subtitle="Tus próximas citas" items={upcoming} timezone={timezone} currency={currency} />
       <ReservationList title="Historial" subtitle="Reservas pasadas" items={history} timezone={timezone} currency={currency} />
     </div>

@@ -45,6 +45,7 @@ export const config = {
     "/barbers/:path*",
     "/services/:path*",
     "/settings/:path*",
+    "/users/:path*",
     "/visitantes/:path*",
     "/barber/:path*",
     "/reservations/:path*",

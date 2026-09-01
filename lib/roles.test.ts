@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ROLE_HOME, homeForRole, isRoleAllowed } from "@/lib/roles";
+import { ROLE_HOME, homeForRole, isRoleAllowed, rolesForPath } from "@/lib/roles";
 import type { UserRole } from "@/app/generated/prisma/client";
 
 describe("roles", () => {
@@ -32,5 +32,24 @@ describe("roles", () => {
     expect(isRoleAllowed("/", "CLIENT")).toBe(true);
     expect(isRoleAllowed("/terminos", "ADMIN")).toBe(true);
     expect(isRoleAllowed("/login", "BARBER")).toBe(true);
+  });
+});
+
+describe("rolesForPath", () => {
+  it("devuelve los roles de la raíz que matchea por prefijo", () => {
+    expect(rolesForPath("/dashboard")).toEqual(["OWNER", "ADMIN"]);
+    expect(rolesForPath("/appointments")).toEqual(["OWNER", "ADMIN"]);
+    expect(rolesForPath("/barber")).toEqual(["BARBER"]);
+    expect(rolesForPath("/reservations")).toEqual(["CLIENT"]);
+  });
+
+  it("resuelve rutas anidadas contra la raíz de su prefijo", () => {
+    expect(rolesForPath("/settings/binnacle")).toEqual(["OWNER", "ADMIN"]);
+    expect(rolesForPath("/barber/agenda")).toEqual(["BARBER"]);
+  });
+
+  it("devuelve [] para rutas no declaradas (públicas)", () => {
+    expect(rolesForPath("/")).toEqual([]);
+    expect(rolesForPath("/terminos")).toEqual([]);
   });
 });
