@@ -24,6 +24,7 @@ export function Topbar({ session }: { session: Session }) {
     barbers: "Barberos",
     services: "Servicios",
     settings: "Configuración",
+    visitantes: "Visitantes",
   };
   const initials = session.name
     .split(" ")

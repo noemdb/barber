@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
+import { ROUTE_RULES, homeForRole, isRoleAllowed } from "@/lib/roles";
 
 const COOKIE = "barberservice_session";
 const secret = new TextEncoder().encode(process.env.AUTH_SECRET || "development-only-secret-change-me");
-
-const PROTECTED_ROUTES = ["/dashboard", "/appointments", "/clients", "/barbers", "/services", "/settings"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -20,7 +19,9 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  const isProtected = PROTECTED_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+  const isProtected = Object.keys(ROUTE_RULES).some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
   if (isProtected) {
     if (!role) {
       const url = request.nextUrl.clone();
@@ -28,8 +29,8 @@ export async function proxy(request: NextRequest) {
       url.search = "";
       return NextResponse.redirect(url);
     }
-    if (role === "CLIENT") {
-      return NextResponse.redirect(new URL("/", request.url));
+    if (!isRoleAllowed(pathname, role)) {
+      return NextResponse.redirect(new URL(homeForRole(role), request.url));
     }
   }
 
@@ -44,5 +45,8 @@ export const config = {
     "/barbers/:path*",
     "/services/:path*",
     "/settings/:path*",
+    "/visitantes/:path*",
+    "/barber/:path*",
+    "/reservations/:path*",
   ],
 };

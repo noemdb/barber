@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { requireStaff } from "@/lib/permissions";
 import { requireRole } from "@/lib/permissions";
 import { withApi } from "@/lib/api";
 import { after } from "next/server";
@@ -9,6 +8,7 @@ import { appointmentCreateSchema } from "@/lib/validations";
 import { createAppointment, type AppointmentRepository } from "@/lib/services/appointment-service";
 import { getBusinessTimezone, zonedDayStartUtc, zonedDayEndUtc } from "@/lib/time";
 import type { Prisma } from "@/app/generated/prisma/client";
+import { logModelMutation, resolveSubject } from "@/lib/binnacle";
 
 type CreatedAppointment = Prisma.AppointmentGetPayload<{
   include: { client: true; barber: true; service: true };
@@ -30,7 +30,7 @@ const appointmentRepo: AppointmentRepository<CreatedAppointment> = {
 
 export async function GET(request: Request) {
   return withApi(async () => {
-    await requireStaff();
+    await requireRole("ADMIN", "OWNER");
     const url = new URL(request.url);
     const date = url.searchParams.get("date");
     const from = url.searchParams.get("from");
@@ -68,7 +68,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   return withApi(async () => {
-    await requireRole("ADMIN", "OWNER");
+    const actor = await requireRole("ADMIN", "OWNER");
     const body = appointmentCreateSchema.parse(await request.json().catch(() => null));
     const data = await createAppointment(appointmentRepo, {
       clientId: body.clientId,
@@ -76,6 +76,27 @@ export async function POST(request: Request) {
       serviceId: body.serviceId,
       startsAt: new Date(body.startsAt),
       notes: body.notes ?? null,
+    });
+
+    const subject = resolveSubject({ id: actor.sub, email: actor.email, role: actor.role, name: actor.name });
+    await logModelMutation({
+      modelName: "Appointment",
+      action: "created",
+      after: {
+        id: data.id,
+        status: data.status,
+        startsAt: data.startsAt,
+        endsAt: data.endsAt,
+        priceCents: data.priceCents,
+      },
+      actor: { id: actor.sub, email: actor.email, role: actor.role, name: actor.name },
+      request,
+      title: "Cita creada",
+      description: `Se creó la cita del ${new Date(data.startsAt).toISOString()}.`,
+      objectId: data.id,
+      objectType: "Appointment",
+      category: "USER_ACTION",
+      severity: "INFO",
     });
 
     after(() => notifyAppointmentEvent("APPOINTMENT_CREATED", toTelegramEvent(data)));

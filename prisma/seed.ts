@@ -15,8 +15,10 @@ const prisma = new PrismaClient({ adapter: new PrismaNeon({ connectionString }) 
 
 const ADMIN_EMAIL = "admin@barberservice.local";
 const BARBER_EMAIL = "daniel@barberservice.local";
+const CLIENT_EMAIL = "carlos.perez@example.com";
 const ADMIN_PASSWORD = "Admin123!";
 const BARBER_PASSWORD = "Barber123!";
+const CLIENT_PASSWORD = "Cliente123!";
 
 const barberSeed = [
   { name: "Daniel García", phone: "+58 412 111 1111", email: BARBER_EMAIL, specialty: "Degradados" },
@@ -195,6 +197,13 @@ async function main() {
     create: { name: "Daniel García", email: BARBER_EMAIL, passwordHash: barberPasswordHash, role: UserRole.BARBER },
   });
 
+  const clientPasswordHash = await hash(CLIENT_PASSWORD);
+  await prisma.user.upsert({
+    where: { email: CLIENT_EMAIL },
+    update: { passwordHash: clientPasswordHash, name: "Carlos Pérez", active: true, role: UserRole.CLIENT },
+    create: { name: "Carlos Pérez", email: CLIENT_EMAIL, passwordHash: clientPasswordHash, role: UserRole.CLIENT },
+  });
+
   const barbers: { id: string; name: string }[] = [];
   for (const data of barberSeed) {
     const existing = await prisma.barber.findFirst({ where: { email: data.email } });
@@ -305,7 +314,9 @@ async function main() {
   console.log(
     `  Negocio: ${(await prisma.businessSettings.findFirst())?.businessName ?? "Barber Shop Central"} (${await prisma.businessSettings.count()} registro, ${await prisma.businessHour.count()} horarios, ${await prisma.testimonial.count()} testimonios)`,
   );
-  console.log(`  Usuarios: ${users} (admin: ${ADMIN_EMAIL}/${ADMIN_PASSWORD}; barbero: ${BARBER_EMAIL}/${BARBER_PASSWORD})`);
+  console.log(
+    `  Usuarios: ${users} (admin: ${ADMIN_EMAIL}/${ADMIN_PASSWORD}; barbero: ${BARBER_EMAIL}/${BARBER_PASSWORD}; cliente: ${CLIENT_EMAIL}/${CLIENT_PASSWORD})`,
+  );
   console.log(`  Barberos: ${allBarbers}`);
   console.log(`  Servicios: ${allServices}`);
   console.log(`  Clientes: ${allClients}`);

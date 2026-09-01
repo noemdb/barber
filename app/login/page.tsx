@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { Scissors, Eye, EyeOff, Loader2, ArrowRight, UserRoundPlus } from "lucide-react";
+import { homeForRole } from "@/lib/roles";
 
 type Mode = "login" | "register";
 
@@ -27,7 +28,7 @@ export default function LoginPage() {
     });
     if (res.ok) {
       const data = await res.json().catch(() => ({}));
-      window.location.assign(data.data?.role === "CLIENT" ? "/" : "/dashboard");
+      window.location.assign(homeForRole(data.data?.role));
     } else {
       const data = await res.json().catch(() => ({}));
       setError(data.error?.message || data.error || "No fue posible continuar");
@@ -83,10 +84,10 @@ export default function LoginPage() {
 
           <form onSubmit={submit} className="mt-8 space-y-5">
             {mode === "register" && (
-              <label className="block text-sm font-medium">Nombre completo<input value={name} onChange={e=>setName(e.target.value)} type="text" required className="mt-2 h-11 w-full rounded-xl border border-zinc-200 px-4 text-sm shadow-sm focus:border-zinc-900" placeholder="Tu nombre" /></label>
+              <label className="block text-sm font-medium text-zinc-700">Nombre completo<input value={name} onChange={e=>setName(e.target.value)} type="text" required className="mt-2 h-11 w-full rounded-xl border border-zinc-300 bg-white px-4 text-sm text-zinc-900 placeholder:text-zinc-400 shadow-sm focus:border-zinc-900" placeholder="Tu nombre" /></label>
             )}
-            <label className="block text-sm font-medium">Correo<input value={email} onChange={e=>setEmail(e.target.value)} type="email" required className="mt-2 h-11 w-full rounded-xl border border-zinc-200 px-4 text-sm shadow-sm focus:border-zinc-900" /></label>
-            <label className="block text-sm font-medium">Contraseña<div className="relative mt-2"><input value={password} onChange={e=>setPassword(e.target.value)} type={show ? "text" : "password"} required minLength={mode === "register" ? 8 : undefined} className="h-11 w-full rounded-xl border border-zinc-200 px-4 pr-12 text-sm shadow-sm focus:border-zinc-900" /><button type="button" className="absolute right-2 top-2 h-7 w-8 grid place-items-center text-zinc-500" onClick={()=>setShow(!show)}>{show ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div>{mode === "register" && <span className="mt-1 block text-xs text-zinc-400">Mínimo 8 caracteres.</span>}</label>
+            <label className="block text-sm font-medium text-zinc-700">Correo<input value={email} onChange={e=>setEmail(e.target.value)} type="email" required className="mt-2 h-11 w-full rounded-xl border border-zinc-300 bg-white px-4 text-sm text-zinc-900 placeholder:text-zinc-400 shadow-sm focus:border-zinc-900" /></label>
+            <label className="block text-sm font-medium text-zinc-700">Contraseña<div className="relative mt-2"><input value={password} onChange={e=>setPassword(e.target.value)} type={show ? "text" : "password"} required minLength={mode === "register" ? 8 : undefined} className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-4 pr-12 text-sm text-zinc-900 placeholder:text-zinc-400 shadow-sm focus:border-zinc-900" /><button type="button" className="absolute right-2 top-2 h-7 w-8 grid place-items-center text-zinc-500" onClick={()=>setShow(!show)}>{show ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div>{mode === "register" && <span className="mt-1 block text-xs text-zinc-400">Mínimo 8 caracteres.</span>}</label>
             {error && <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
             <button disabled={loading} className="h-11 w-full rounded-xl bg-zinc-950 text-white font-semibold text-sm flex items-center justify-center gap-2 hover:bg-zinc-800 disabled:opacity-60">{loading ? <Loader2 className="animate-spin" size={17}/> : mode === "login" ? <>Iniciar sesión <ArrowRight size={16}/></> : <><UserRoundPlus size={16}/> Crear cuenta</>}</button>
           </form>

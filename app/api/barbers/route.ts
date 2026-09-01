@@ -2,11 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { withApi } from "@/lib/api";
 import { DomainError, ErrorCodes } from "@/lib/errors";
 import { barberCreateSchema, barberPatchSchema } from "@/lib/validations";
-import { requireStaff, requireRole } from "@/lib/permissions";
+import { requireRole } from "@/lib/permissions";
 
 export async function GET() {
   return withApi(async () => {
-    await requireStaff();
+    await requireRole("ADMIN", "OWNER");
     return { data: await prisma.barber.findMany({ where: { active: true }, orderBy: { name: "asc" } }) };
   });
 }

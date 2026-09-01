@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requireRole, requireStaff } from "@/lib/permissions";
+import { requireRole } from "@/lib/permissions";
 import { withApi } from "@/lib/api";
 import { DomainError, ErrorCodes } from "@/lib/errors";
 import { SettingsUpdateInput } from "@/lib/settings.schema";
@@ -26,7 +26,7 @@ async function fetchSettingsPayload(id: string) {
 
 export async function GET() {
   return withApi(async () => {
-    await requireStaff();
+    await requireRole("ADMIN", "OWNER");
     const existing = await prisma.businessSettings.findFirst();
     const id = existing?.id ?? DEFAULT_ID;
     const payload = await fetchSettingsPayload(id);

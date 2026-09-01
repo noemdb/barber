@@ -16,10 +16,13 @@ import {
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { money, initials } from "@/lib/format";
+import { toMapsEmbedUrl } from "@/lib/map";
 import LandingNav from "@/components/landing/nav";
 import Reveal from "@/components/landing/reveal";
 import BookingButton from "@/components/landing/booking-button";
 import BookingDialog from "@/components/landing/booking-dialog";
+import FloatingBookingButton from "@/components/landing/floating-booking-button";
+import { VisitTracker } from "@/components/landing/visit-tracker";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +79,8 @@ export default async function Home() {
     { label: "Instagram", href: settings?.instagramUrl },
     { label: "Facebook", href: settings?.facebookUrl },
   ].filter((s) => s.href) as { label: string; href: string }[];
+
+  const mapsEmbedUrl = await toMapsEmbedUrl(settings?.mapsUrl, settings?.address);
 
   return (
     <main data-theme="dark" className="min-h-screen w-full min-w-0 overflow-x-clip bg-zinc-950 text-white">
@@ -240,6 +245,17 @@ export default async function Home() {
                 <span className="font-display text-xs font-semibold text-gold/70">
                   {String(i + 1).padStart(2, "0")}
                 </span>
+                <div className="flex items-center gap-3">
+                  {service.imageUrl ? (
+                    <div className="relative h-12 w-12 overflow-hidden rounded-full border border-gold/20 bg-zinc-900">
+                      <Image src={service.imageUrl} alt={service.name} fill className="object-cover" sizes="48px" />
+                    </div>
+                  ) : (
+                    <div className="grid h-12 w-12 place-items-center rounded-full border border-gold/20 bg-zinc-900 text-gold">
+                      <Scissors size={16} />
+                    </div>
+                  )}
+                </div>
                 <div className="flex-1">
                   <h3 className="font-display text-lg font-medium uppercase tracking-tight md:text-xl">
                     {service.name}
@@ -439,10 +455,6 @@ export default async function Home() {
               Elige tu servicio y a tu barbero, confirma y nosotros nos encargamos del resto.
               Sin registros obligatorios, sin esperas.
             </p>
-            <BookingButton className="group mt-6 inline-flex h-11 items-center gap-2 rounded-full bg-gold px-7 text-sm font-semibold text-zinc-950 transition-all hover:bg-gold-light hover:shadow-[0_8px_30px_rgba(200,164,92,0.4)]">
-              Reservar cita
-              <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-            </BookingButton>
           </Reveal>
         </div>
 
@@ -491,11 +503,7 @@ export default async function Home() {
             <div className="h-[320px] w-full overflow-hidden md:h-[420px]">
               <iframe
                 title="Mapa de ubicación"
-                src={
-                  settings?.mapsUrl
-                    ? `https://maps.google.com/maps?q=10.3369782,-68.732265&z=17&output=embed&t=m&iwloc=near`
-                    : ""
-                }
+                src={mapsEmbedUrl}
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
                 className="h-full w-full border-0 saturate-[85%]"
@@ -639,6 +647,13 @@ export default async function Home() {
       </footer>
 
       <BookingDialog services={services} barbers={barbers} currency={currency} />
+
+      <VisitTracker />
+
+      <FloatingBookingButton>
+        <Calendar size={15} /> Reservar cita
+        <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+      </FloatingBookingButton>
     </main>
   );
 }

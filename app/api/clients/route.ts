@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { requireStaff } from "@/lib/permissions";
 import { requireRole } from "@/lib/permissions";
 import { withApi } from "@/lib/api";
 import { DomainError, ErrorCodes } from "@/lib/errors";
@@ -7,16 +6,21 @@ import { clientCreateSchema, clientPatchSchema } from "@/lib/validations";
 
 export async function GET() {
   return withApi(async () => {
-    await requireStaff();
-    return { data: await prisma.client.findMany({ where: { active: true }, orderBy: { name: "asc" } }) };
+    await requireRole("ADMIN", "OWNER");
+    return { data: await prisma.client.findMany({ where: { active: true }, orderBy: { name: "asc" }, include: { _count: { select: { appointments: true } } } }) };
   });
 }
 
 export async function POST(request: Request) {
   return withApi(async () => {
     await requireRole("ADMIN", "OWNER");
-    const body = clientCreateSchema.parse(await request.json().catch(() => null));
-    return { data: await prisma.client.create({ data: body }), status: 201 };
+    const raw = await request.json().catch(() => null);
+    if (!raw || typeof raw !== "object") throw new DomainError(ErrorCodes.VALIDATION_ERROR, "Cuerpo inválido", 400);
+
+    const body = clientCreateSchema.safeParse(raw);
+    if (!body.success) throw new DomainError(ErrorCodes.VALIDATION_ERROR, "Datos de cliente inválidos", 400);
+
+    return { data: await prisma.client.create({ data: { ...body.data, avatar: body.data.avatar ?? null } }), status: 201 };
   });
 }
 
@@ -35,7 +39,16 @@ export async function PATCH(request: Request) {
     const parse = clientPatchSchema.safeParse(rest);
     if (!parse.success) throw new DomainError(ErrorCodes.VALIDATION_ERROR, "Datos de cliente inválidos", 400);
 
-    const data = await prisma.client.update({ where: { id }, data: parse.data });
+    const data = await prisma.client.update({
+      where: { id },
+      data: {
+        ...(parse.data.name !== undefined && { name: parse.data.name }),
+        ...(parse.data.phone !== undefined && { phone: parse.data.phone }),
+        ...(parse.data.email !== undefined && { email: parse.data.email }),
+        ...(parse.data.notes !== undefined && { notes: parse.data.notes }),
+        ...(parse.data.avatar !== undefined && { avatar: parse.data.avatar ?? null }),
+      },
+    });
     return { data };
   });
 }

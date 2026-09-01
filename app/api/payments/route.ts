@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { requireStaff } from "@/lib/permissions";
+import { requireRole } from "@/lib/permissions";
 import { DomainError, ErrorCodes } from "@/lib/errors";
 import { paymentCreateSchema } from "@/lib/validations";
 import { createPayment, type PaymentRepository } from "@/lib/services/payment-service";
@@ -8,7 +8,7 @@ import { createPayment, type PaymentRepository } from "@/lib/services/payment-se
 type CreatedPayment = Awaited<ReturnType<typeof prisma.payment.create>>;
 
 export async function POST(request: Request) {
-  await requireStaff();
+  await requireRole("ADMIN", "OWNER");
   const raw = await request.json().catch(() => null);
   if (!raw || typeof raw !== "object") throw new DomainError(ErrorCodes.VALIDATION_ERROR, "Cuerpo inválido", 400);
 

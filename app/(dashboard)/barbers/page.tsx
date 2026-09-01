@@ -139,7 +139,7 @@ export default function BarbersPage() {
               ))}
                 <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                   Avatar
-                  <div className="mt-2 flex items-center gap-4 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-3">
+                  <div className="mt-2 flex flex-col gap-3 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-3 sm:flex-row sm:items-center">
                     <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
                       {form.avatar ? (
                         <div
@@ -165,28 +165,37 @@ export default function BarbersPage() {
                         </button>
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Foto de perfil</p>
-                      <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">PNG, JPG, GIF o SVG · máximo 2 MB</p>
-                      <UploadButton
-                        endpoint="avatarUploader"
-                        onUploadBegin={() => setUploading(true)}
-                        onClientUploadComplete={(files) => {
-                          const uploaded = files?.[0];
-                          if (uploaded) setForm({ ...form, avatar: uploaded.ufsUrl });
-                          setUploading(false);
-                        }}
-                        onUploadError={(error) => {
-                          setUploading(false);
-                          const message = error.message.includes("FileSizeMismatch")
-                            ? "La imagen supera el límite de 2 MB"
-                            : error.message.includes("FileTypeMismatch")
-                              ? "Solo se permiten imágenes PNG, JPG, GIF o SVG"
-                              : error.message || "No se pudo cargar la imagen";
-                          toast.error(message);
-                        }}
-                        config={{ mode: "auto" }}
-                      />
+                    <div className="min-w-0 w-full flex-1">
+                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 break-words">Foto de perfil</p>
+                      <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400 break-words">PNG, JPG, GIF o SVG · máximo 2 MB</p>
+                      <div className="mt-2 w-full max-w-[220px]">
+                        <UploadButton
+                          className="w-full max-w-[220px]"
+                          appearance={{
+                            container: "w-full max-w-[220px]",
+                            button: "w-full !h-10 !min-w-0 !px-3 !rounded-lg !bg-zinc-950 dark:!bg-gold !text-white dark:!text-zinc-950 !shadow-none !border-0 hover:!bg-zinc-800 dark:hover:!bg-gold-light",
+                            allowedContent: "hidden",
+                          }}
+                          content={{ button: "Seleccionar", allowedContent: "" }}
+                          endpoint="avatarUploader"
+                          onUploadBegin={() => setUploading(true)}
+                          onClientUploadComplete={(files) => {
+                            const uploaded = files?.[0];
+                            if (uploaded) setForm({ ...form, avatar: uploaded.ufsUrl });
+                            setUploading(false);
+                          }}
+                          onUploadError={(error) => {
+                            setUploading(false);
+                            const message = error.message.includes("FileSizeMismatch")
+                              ? "La imagen supera el límite de 2 MB"
+                              : error.message.includes("FileTypeMismatch")
+                                ? "Solo se permiten imágenes PNG, JPG, GIF o SVG"
+                                : error.message || "No se pudo cargar la imagen";
+                            toast.error(message);
+                          }}
+                          config={{ mode: "auto" }}
+                        />
+                      </div>
                       {uploading ? (
                         <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">Subiendo imagen...</p>
                       ) : form.avatar ? (

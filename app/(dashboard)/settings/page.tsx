@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Image as ImageIcon, Loader2, RefreshCw, Save, Send, X } from "lucide-react";
+import { AlertTriangle, Download, Image as ImageIcon, Loader2, RefreshCw, RotateCcw, Save, Send, Upload, X } from "lucide-react";
 import { generateReactHelpers } from "@uploadthing/react";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
 import { BusinessHoursEditor, type HourEntry } from "@/components/settings/business-hours-editor";
@@ -87,13 +87,21 @@ function pickScalars(data: Record<string, unknown>): ScalarSettings {
 const inputClass =
   "mt-1.5 h-10 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm text-zinc-900 dark:text-zinc-100 outline-none";
 
-type TabId = "general" | "notificaciones" | "horarios" | "testimonios";
+type TabId = "general" | "notificaciones" | "horarios" | "testimonios" | "base-de-datos";
 const TABS: { id: TabId; label: string }[] = [
   { id: "general", label: "General" },
   { id: "notificaciones", label: "Notificaciones" },
   { id: "horarios", label: "Horarios" },
   { id: "testimonios", label: "Testimonios" },
+  { id: "base-de-datos", label: "Base de datos" },
 ];
+
+// Palabra clave que el admin debe tipear para habilitar el botón de reinicio (señal de confirmación).
+const RESET_CONFIRM_WORD = "REINICIAR";
+// Palabra clave que el admin debe tipear para habilitar la restauración (señal de confirmación).
+const RESTORE_CONFIRM_WORD = "RESTAURAR";
+
+type BackupFile = { exportedAt: string; app: string; tables: Record<string, Record<string, unknown>[]> };
 
 export default function SettingsPage() {
   const [form, setForm] = useState<ScalarSettings>(DEFAULTS);
@@ -104,6 +112,13 @@ export default function SettingsPage() {
   const [testing, setTesting] = useState(false);
   const [envChatId, setEnvChatId] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>("general");
+  const [confirmWord, setConfirmWord] = useState("");
+  const [resetting, setResetting] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreWord, setRestoreWord] = useState("");
+  const [restoring, setRestoring] = useState(false);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const set = (key: keyof ScalarSettings, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -206,6 +221,100 @@ export default function SettingsPage() {
       toast.error("No se pudo conectar con el servidor de prueba");
     } finally {
       setTesting(false);
+    }
+  }
+
+  async function resetDb() {
+    setResetting(true);
+    try {
+      const r = await fetch("/api/db/reset", { method: "POST" });
+      const json = await r.json();
+      if (!json.success) {
+        toast.error(json.error?.message || "No se pudo reiniciar la base de datos");
+        return;
+      }
+      const d = json.data as { deleted: Record<string, number> };
+      const parts = Object.entries(d.deleted ?? {})
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(" · ");
+      toast.success("Base de datos reiniciada", { description: parts });
+      setConfirmWord("");
+    } catch {
+      toast.error("No se pudo conectar con el servidor");
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  async function downloadBackup() {
+    setBackingUp(true);
+    try {
+      const r = await fetch("/api/db/backup", { method: "POST" });
+      const json = await r.json();
+      if (!json.success) {
+        toast.error(json.error?.message || "No se pudo generar el backup");
+        return;
+      }
+      const backup = json.data as BackupFile;
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      a.href = url;
+      a.download = `barberservice-backup-${ts}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      const entries = Object.entries(backup.tables ?? {});
+      const total = entries.reduce((n, [, rows]) => n + rows.length, 0);
+      toast.success("Backup descargado", { description: `${entries.length} tablas · ${total} registros` });
+    } catch {
+      toast.error("No se pudo generar el backup");
+    } finally {
+      setBackingUp(false);
+    }
+  }
+
+  function onRestoreFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setRestoreFile(e.target.files?.[0] ?? null);
+    setRestoreWord("");
+  }
+
+  async function restoreDb() {
+    if (!restoreFile) {
+      toast.error("Selecciona un archivo de backup");
+      return;
+    }
+    if (restoreWord.trim().toUpperCase() !== RESTORE_CONFIRM_WORD) {
+      toast.error(`Escribe "${RESTORE_CONFIRM_WORD}" para habilitar la restauración`);
+      return;
+    }
+    setRestoring(true);
+    try {
+      const text = await restoreFile.text();
+      const r = await fetch("/api/db/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: text,
+      });
+      const json = await r.json();
+      if (!json.success) {
+        toast.error(json.error?.message || "No se pudo restaurar la base de datos");
+        return;
+      }
+      const d = json.data as { restored: Record<string, number> };
+      const parts = Object.entries(d.restored ?? {})
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(" · ");
+      toast.success("Base de datos restaurada", { description: parts });
+      setRestoreWord("");
+      setRestoreFile(null);
+      if (restoreInputRef.current) restoreInputRef.current.value = "";
+    } catch {
+      toast.error("No se pudo conectar con el servidor");
+    } finally {
+      setRestoring(false);
     }
   }
 
@@ -362,6 +471,120 @@ export default function SettingsPage() {
             <Card title="Testimonios" description="Lo que dicen tus clientes en la página principal.">
               <TestimonialsEditor value={testimonials} onChange={setTestimonials} />
             </Card>
+          )}
+
+          {tab === "base-de-datos" && (
+            <>
+            <Card title="Backup de la base de datos" description="Descarga una copia completa de todas las tablas en un archivo JSON.">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="max-w-md text-xs text-zinc-500 dark:text-zinc-400">
+                  El archivo incluye todas las tablas (usuarios, clientes, citas, pagos, visitantes, bitácora…).{" "}
+                  <span className="font-medium text-red-500 dark:text-red-400">Contiene datos sensibles</span> (hashes de contraseña y datos personales); guárdalo en un lugar seguro.
+                </p>
+                <button
+                  type="button"
+                  onClick={downloadBackup}
+                  disabled={backingUp}
+                  className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-zinc-950 dark:bg-gold px-5 text-sm font-semibold text-white dark:text-zinc-950 transition-colors hover:bg-zinc-800 dark:hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {backingUp ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                  Descargar backup
+                </button>
+              </div>
+            </Card>
+
+            <Card title="Restaurar base de datos" description="Reemplaza los datos actuales por los de un archivo JSON descargado con «Descargar backup». Esta acción no se puede deshacer.">
+              <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <div className="text-sm text-amber-800 dark:text-amber-200">
+                    <strong className="font-semibold">Se reemplazarán todos los datos actuales.</strong>
+                    <p className="mt-1 text-xs text-amber-700/90 dark:text-amber-300/80">
+                      Se restaurarán las tablas del archivo elegido. Asegúrate de que sea un backup legítimo:{" "}
+                      <span className="font-medium">contiene datos sensibles</span> (hashes de contraseña y datos personales).
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => restoreInputRef.current?.click()}
+                  className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm font-semibold text-zinc-700 dark:text-zinc-300 transition-colors hover:border-zinc-300 dark:hover:border-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                >
+                  <Upload size={15} />
+                  Seleccionar archivo
+                </button>
+                <input ref={restoreInputRef} type="file" accept=".json,application/json" onChange={onRestoreFileChange} className="hidden" />
+                <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                  {restoreFile ? restoreFile.name : "Ningún archivo seleccionado"}
+                </span>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+                <Field label={`Escribe "${RESTORE_CONFIRM_WORD}" para habilitar la restauración`}>
+                  <input
+                    value={restoreWord}
+                    onChange={(e) => setRestoreWord(e.target.value)}
+                    placeholder={RESTORE_CONFIRM_WORD}
+                    autoComplete="off"
+                    spellCheck={false}
+                    className={inputClass}
+                  />
+                </Field>
+                <button
+                  type="button"
+                  onClick={restoreDb}
+                  disabled={restoring || !restoreFile || restoreWord.trim().toUpperCase() !== RESTORE_CONFIRM_WORD}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-zinc-950 dark:bg-gold px-5 text-sm font-semibold text-white dark:text-zinc-950 transition-colors hover:bg-zinc-800 dark:hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {restoring ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                  Restaurar base de datos
+                </button>
+              </div>
+            </Card>
+
+            <Card title="Reiniciar datos" description="Limpia las tablas de operación del negocio. Esta acción no se puede deshacer.">
+              <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-500 dark:text-red-400" />
+                  <div className="text-sm text-red-700 dark:text-red-300">
+                    <strong className="font-semibold">Se perderán datos de forma permanente.</strong>
+                    <p className="mt-1 text-xs text-red-600/90 dark:text-red-300/80">
+                      Se vaciarán las tablas: <code>{`Appointment`}</code>, <code>{`Barber`}</code>, <code>{`BusinessHour`}</code>, <code>{`Client`}</code>, <code>{`Payment`}</code> y <code>{`Service`}</code>.{" "}
+                      La configuración, usuarios y testimonios se conservan.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+                <Field label={`Escribe "${RESET_CONFIRM_WORD}" para habilitar el reinicio`}>
+                  <input
+                    value={confirmWord}
+                    onChange={(e) => setConfirmWord(e.target.value)}
+                    placeholder={RESET_CONFIRM_WORD}
+                    autoComplete="off"
+                    spellCheck={false}
+                    className={inputClass}
+                  />
+                </Field>
+                <button
+                  type="button"
+                  onClick={resetDb}
+                  disabled={resetting || confirmWord.trim().toUpperCase() !== RESET_CONFIRM_WORD}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {resetting ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />}
+                  Reiniciar datos
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
+                Esta acción borra los registros de las tablas indicadas y no admite deshacer.
+              </p>
+            </Card>
+            </>
           )}
         </>
       )}

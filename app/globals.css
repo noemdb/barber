@@ -25,6 +25,10 @@
 }
 
 :root { --sidebar: 252px; }
+/* El margen del contenido principal sigue al estado del sidebar */
+@media (min-width: 1024px) {
+  .main-content { margin-left: var(--sidebar-w, 252px); transition: margin-left 300ms ease; }
+}
 html { scroll-behavior: smooth; scroll-padding-top: 92px; }
 html, body { min-height: 100%; overflow-x: clip; }
 
@@ -65,3 +69,12 @@ body {
 
 button, input, select, textarea { outline: none; }
 * { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+
+/* Autofill de Chrome: mantener fondo blanco y texto legible en inputs claros */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #18181b;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  transition: background-color 9999s ease-out;
+}

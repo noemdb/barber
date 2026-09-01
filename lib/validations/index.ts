@@ -72,6 +72,10 @@ export const clientCreateSchema = z.object({
   phone: optionalText,
   email: optionalEmail,
   notes: optionalText,
+  avatar: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.union([z.string().url("El avatar debe ser una URL válida"), z.null()]).optional(),
+  ),
 });
 
 export const clientPatchSchema = clientCreateSchema.partial();
@@ -79,9 +83,15 @@ export const clientPatchSchema = clientCreateSchema.partial();
 export const serviceCreateSchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio"),
   description: optionalText,
+  imageUrl: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.union([z.string().url("La imagen debe ser una URL válida"), z.null()]).optional(),
+  ),
   durationMin: z.number().int("La duración debe ser un entero").positive("La duración debe ser positiva"),
   priceCents: z.number().int("El precio debe ser un entero").positive("El precio debe ser positivo"),
 });
+
+export const servicePatchSchema = serviceCreateSchema.partial();
 
 export const paymentCreateSchema = z.object({
   appointmentId: z.string().cuid("ID de cita inválido"),

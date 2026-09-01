@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">BarberService</title>
+  <desc id="desc">Icono de tijeras de barberia</desc>
+  <rect width="64" height="64" rx="16" fill="#18181b"/>
+  <circle cx="21" cy="22" r="8" fill="none" stroke="#ddc692" stroke-width="4"/>
+  <circle cx="21" cy="42" r="8" fill="none" stroke="#c8a45c" stroke-width="4"/>
+  <path d="M27 27 47 47M27 37 47 17" fill="none" stroke="#c8a45c" stroke-linecap="round" stroke-width="4"/>
+  <circle cx="47" cy="17" r="2.5" fill="#ddc692"/>
+  <circle cx="47" cy="47" r="2.5" fill="#ddc692"/>
+</svg>

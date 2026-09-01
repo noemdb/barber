@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requireRole, requireStaff } from "@/lib/permissions";
+import { requireRole } from "@/lib/permissions";
 import { withApi } from "@/lib/api";
 import { DomainError, ErrorCodes } from "@/lib/errors";
 import { appointmentPatchSchema } from "@/lib/validations";
@@ -9,7 +9,7 @@ import { toTelegramEvent } from "@/lib/telegram/event";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   return withApi(async () => {
-    await requireStaff();
+    await requireRole("ADMIN", "OWNER");
     const { id } = await params;
     const data = await prisma.appointment.findUnique({
       where: { id },

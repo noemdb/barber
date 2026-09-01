@@ -70,6 +70,7 @@ model Client {
   phone        String?
   email        String?
   notes        String?
+  avatar       String?
   active       Boolean       @default(true)
   appointments Appointment[]
   createdAt    DateTime      @default(now())
@@ -83,6 +84,7 @@ model Service {
   id           String        @id @default(cuid())
   name         String
   description  String?
+  imageUrl     String?
   durationMin  Int           @default(30)
   priceCents   Int
   active       Boolean       @default(true)
@@ -178,4 +180,99 @@ model Testimonial {
   updatedAt  DateTime       @updatedAt
 
   @@index([businessId, order])
+}
+
+enum BinnacleCategory {
+  AUTHENTICATION
+  USER_ACTION
+  SYSTEM
+  SECURITY
+  ERROR
+}
+
+enum BinnacleSeverity {
+  DEBUG
+  INFO
+  WARNING
+  CRITICAL
+  ALERT
+}
+
+model BinnacleEntry {
+  id                String            @id @default(cuid())
+  eventType         String            @map("event_type")
+  category          BinnacleCategory  @default(SYSTEM) @map("event_category")
+  severity          BinnacleSeverity  @default(INFO) @map("event_severity")
+  title             String
+  description       String?           @db.Text
+
+  subjectType       String?           @map("subject_type")
+  subjectId         String?           @map("subject_id")
+  subjectIdentifier String?           @map("subject_identifier")
+
+  objectType        String?           @map("object_type")
+  objectId          String?           @map("object_id")
+  objectIdentifier  String?           @map("object_identifier")
+
+  ipAddress         String?           @map("ip_address") @db.VarChar(45)
+  userAgent         String?           @map("user_agent") @db.Text
+  requestMethod     String?           @map("request_method") @db.VarChar(10)
+  requestUrl        String?           @map("request_url") @db.Text
+  sessionId         String?           @map("session_id") @db.VarChar(200)
+
+  oldValues         Json?             @map("old_values")
+  newValues         Json?             @map("new_values")
+  changedFields     String[]          @default([]) @map("changed_fields")
+  metadata          Json?
+
+  createdBy         String?           @map("created_by")
+  createdAt         DateTime          @default(now()) @map("created_at")
+
+  @@index([eventType])
+  @@index([category])
+  @@index([severity])
+  @@index([subjectType, subjectId, createdAt])
+  @@index([objectType, objectId, createdAt])
+  @@index([createdAt])
+  @@index([ipAddress])
+  @@map("binnacle_entries")
+}
+
+model VisitorSession {
+  id          String   @id @default(cuid())
+  fingerprint String   @unique @db.VarChar(64)
+  country     String?  @map("country")
+  city        String?  @map("city")
+  device      String?  @map("device") // "mobile" | "tablet" | "desktop"
+  browser     String?  @map("browser")
+  os          String?  @map("os")
+  referrer    String?  @map("referrer") @db.Text
+  isOrganic   Boolean  @default(false) @map("is_organic")
+  pagesViewed Int      @default(1) @map("pages_viewed")
+  duration    Int      @default(0) @map("duration") // segundos totales
+  bounced     Boolean  @default(true) @map("bounced")
+  firstSeen   DateTime @default(now()) @map("first_seen")
+  lastSeen    DateTime @default(now()) @map("last_seen")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([firstSeen])
+  @@index([lastSeen])
+  @@index([country])
+  @@index([isOrganic])
+  @@map("visitor_sessions")
+}
+
+model PageView {
+  id        String   @id @default(cuid())
+  sessionId String   @map("session_id")
+  path      String   @map("path")
+  referrer  String?  @map("referrer") @db.Text
+  isOrganic Boolean  @default(false) @map("is_organic")
+  duration  Int      @default(0) @map("duration") // segundos en la página
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([path])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("page_views")
 }
