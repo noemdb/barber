@@ -66,7 +66,7 @@ export default function FloatingBookingButton({ children }: { children: ReactNod
         transform: `translate(${visible ? shift : 0}px, ${visible ? 0 : 20}px)`,
         opacity: visible ? 1 : 0,
       }}
-      className="group fixed bottom-6 left-6 z-50 flex h-11 items-center gap-2 rounded-full bg-gold px-6 text-sm font-semibold text-zinc-950 shadow-[0_8px_30px_rgba(200,164,92,0.35)] transition-all duration-700 ease-out hover:bg-gold-light hover:shadow-[0_8px_30px_rgba(200,164,92,0.45)]"
+      className="group fixed bottom-6 left-6 z-50 flex h-11 items-center gap-2 rounded-full bg-gold px-6 text-sm font-semibold text-zinc-950 shadow-[0_8px_30px_var(--gold-glow-35)] transition-all duration-700 ease-out hover:bg-gold-light hover:shadow-[0_8px_30px_var(--gold-glow-45)]"
       aria-hidden={!visible}
       tabIndex={visible ? 0 : -1}
     >

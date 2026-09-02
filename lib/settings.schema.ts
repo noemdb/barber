@@ -37,11 +37,15 @@ const currencySchema = z
 
 export const SettingsUpdateInput = z.object({
   businessName: z.string().trim().min(1).optional(),
+  subname: nullableText.optional(),
+  subtitle: nullableText.optional(),
+  slogan: nullableText.optional(),
   tagline: nullableText.optional(),
   description: nullableText.optional(),
   logoUrl: urlText.optional(),
   faviconUrl: urlText.optional(),
   heroImageUrl: urlText.optional(),
+  heroBackgroundUrl: urlText.optional(),
   phone: nullableText.optional(),
   email: emailText.optional(),
   whatsapp: nullableText.optional(),
@@ -53,6 +57,7 @@ export const SettingsUpdateInput = z.object({
   timezone: timezoneSchema.optional(),
   appointmentSlot: z.number().int().min(5).max(240).optional(),
   telegramChatId: nullableText.optional(),
+  paletteSlug: z.string().trim().max(64).nullable().optional(),
   businessHours: z
     .array(
       z.object({

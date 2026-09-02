@@ -131,10 +131,14 @@ model Payment {
 model BusinessSettings {
   id              String   @id @default(cuid())
   businessName    String   @default("Barber Shop Central")
+  subname         String?
+  subtitle        String?
+  slogan          String?
+  tagline         String?
   logoUrl         String?
   faviconUrl      String?
-  tagline         String?
   heroImageUrl    String?
+  heroBackgroundUrl String?
   description     String?
   phone           String?
   email           String?
@@ -147,10 +151,27 @@ model BusinessSettings {
   timezone        String   @default("America/Caracas")
   appointmentSlot Int      @default(30)
   telegramChatId  String?
+  paletteSlug     String?
   hours           BusinessHour[]
   testimonials    Testimonial[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model ColorPalette {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  accent      String
+  accentLight String
+  accentDark  String
+  isDefault   Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([order])
+  @@map("color_palettes")
 }
 
 model BusinessHour {

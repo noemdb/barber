@@ -161,7 +161,7 @@ export default function BookingDialog({
         aria-labelledby="booking-title"
         className="relative min-w-0 w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl"
       >
-        <div className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_50%_0%,rgba(200,164,92,0.18),transparent_70%)]" />
+        <div className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_50%_0%,var(--gold-glow-18),transparent_70%)]" />
         <button
           type="button"
           aria-label="Cerrar"

@@ -25,6 +25,19 @@
 }
 
 :root { --sidebar: 252px; }
+/* Glows derivados del acento; resuelven var(--color-gold) en el punto de uso,
+   de modo que al cambiarse la paleta (inline en <main>) se actualizan. */
+:root {
+  --gold-glow-12: color-mix(in oklab, var(--color-gold) 12%, transparent);
+  --gold-glow-16: color-mix(in oklab, var(--color-gold) 16%, transparent);
+  --gold-glow-18: color-mix(in oklab, var(--color-gold) 18%, transparent);
+  --gold-glow-20: color-mix(in oklab, var(--color-gold) 20%, transparent);
+  --gold-glow-22: color-mix(in oklab, var(--color-gold) 22%, transparent);
+  --gold-glow-25: color-mix(in oklab, var(--color-gold) 25%, transparent);
+  --gold-glow-28: color-mix(in oklab, var(--color-gold) 28%, transparent);
+  --gold-glow-35: color-mix(in oklab, var(--color-gold) 35%, transparent);
+  --gold-glow-45: color-mix(in oklab, var(--color-gold) 45%, transparent);
+}
 /* El margen del contenido principal sigue al estado del sidebar */
 @media (min-width: 1024px) {
   .main-content { margin-left: var(--sidebar-w, 252px); transition: margin-left 300ms ease; }

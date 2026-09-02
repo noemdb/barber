@@ -2,21 +2,26 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, Download, Image as ImageIcon, Loader2, RefreshCw, RotateCcw, Save, Send, Upload, X } from "lucide-react";
+import { AlertTriangle, Download, Image as ImageIcon, Link, Loader2, RefreshCw, RotateCcw, Save, Send, Upload, X } from "lucide-react";
 import { generateReactHelpers } from "@uploadthing/react";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
 import { BusinessHoursEditor, type HourEntry } from "@/components/settings/business-hours-editor";
 import { TestimonialsEditor, type TestimonialEntry } from "@/components/settings/testimonials-editor";
+import { PalettePicker, type PaletteOption } from "@/components/settings/palette-picker";
 
 const { useUploadThing } = generateReactHelpers<OurFileRouter>();
 
 type ScalarSettings = {
   businessName: string;
+  subname: string;
+  subtitle: string;
+  slogan: string;
   tagline: string;
   description: string;
   logoUrl: string;
   faviconUrl: string;
   heroImageUrl: string;
+  heroBackgroundUrl: string;
   phone: string;
   whatsapp: string;
   email: string;
@@ -28,15 +33,20 @@ type ScalarSettings = {
   timezone: string;
   appointmentSlot: string;
   telegramChatId: string;
+  paletteSlug: string;
 };
 
 const DEFAULTS: ScalarSettings = {
   businessName: "",
+  subname: "",
+  subtitle: "",
+  slogan: "",
   tagline: "",
   description: "",
   logoUrl: "",
   faviconUrl: "",
   heroImageUrl: "",
+  heroBackgroundUrl: "",
   phone: "",
   whatsapp: "",
   email: "",
@@ -48,11 +58,12 @@ const DEFAULTS: ScalarSettings = {
   timezone: "America/Caracas",
   appointmentSlot: "30",
   telegramChatId: "",
+  paletteSlug: "",
 };
 
 const NULLABLE_KEYS = new Set([
-  "tagline", "description", "logoUrl", "faviconUrl", "heroImageUrl", "phone", "whatsapp",
-  "email", "address", "mapsUrl", "instagramUrl", "facebookUrl", "telegramChatId",
+  "tagline", "description", "logoUrl", "faviconUrl", "heroImageUrl", "heroBackgroundUrl", "phone", "whatsapp",
+  "email", "address", "mapsUrl", "instagramUrl", "facebookUrl", "telegramChatId", "paletteSlug",
 ]);
 
 function normalizeHours(hours: HourEntry[]): HourEntry[] {
@@ -65,11 +76,15 @@ function normalizeHours(hours: HourEntry[]): HourEntry[] {
 function pickScalars(data: Record<string, unknown>): ScalarSettings {
   return {
     businessName: String(data.businessName ?? ""),
+    subname: String(data.subname ?? ""),
+    subtitle: String(data.subtitle ?? ""),
+    slogan: String(data.slogan ?? ""),
     tagline: String(data.tagline ?? ""),
     description: String(data.description ?? ""),
     logoUrl: String(data.logoUrl ?? ""),
     faviconUrl: String(data.faviconUrl ?? ""),
     heroImageUrl: String(data.heroImageUrl ?? ""),
+    heroBackgroundUrl: String(data.heroBackgroundUrl ?? ""),
     phone: String(data.phone ?? ""),
     whatsapp: String(data.whatsapp ?? ""),
     email: String(data.email ?? ""),
@@ -81,6 +96,7 @@ function pickScalars(data: Record<string, unknown>): ScalarSettings {
     timezone: String(data.timezone ?? "America/Caracas"),
     appointmentSlot: String(data.appointmentSlot ?? "30"),
     telegramChatId: String(data.telegramChatId ?? ""),
+    paletteSlug: String(data.paletteSlug ?? ""),
   };
 }
 
@@ -93,7 +109,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "notificaciones", label: "Notificaciones" },
   { id: "horarios", label: "Horarios" },
   { id: "testimonios", label: "Testimonios" },
-  { id: "base-de-datos", label: "Base de datos" },
+  { id: "base-de-datos", label: "Base de datos" }
 ];
 
 // Palabra clave que el admin debe tipear para habilitar el botón de reinicio (señal de confirmación).
@@ -107,10 +123,12 @@ export default function SettingsPage() {
   const [form, setForm] = useState<ScalarSettings>(DEFAULTS);
   const [hours, setHours] = useState<HourEntry[]>(normalizeHours([]));
   const [testimonials, setTestimonials] = useState<TestimonialEntry[]>([]);
+  const [palettes, setPalettes] = useState<PaletteOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [envChatId, setEnvChatId] = useState<string | null>(null);
+  const [botUsername, setBotUsername] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>("general");
   const [confirmWord, setConfirmWord] = useState("");
   const [resetting, setResetting] = useState(false);
@@ -129,10 +147,11 @@ export default function SettingsPage() {
       .then((json) => {
         if (cancelled) return;
         if (json.success) {
-          const d = json.data as { settings: Record<string, unknown>; businessHours: HourEntry[]; testimonials: TestimonialEntry[]; telegramEnvChatId?: string | null };
+          const d = json.data as { settings: Record<string, unknown>; businessHours: HourEntry[]; testimonials: TestimonialEntry[]; palettes?: PaletteOption[]; telegramEnvChatId?: string | null };
           setForm(pickScalars(d.settings ?? {}));
           setHours(normalizeHours(d.businessHours ?? []));
           setTestimonials(d.testimonials ?? []);
+          setPalettes(d.palettes ?? []);
           setEnvChatId(d.telegramEnvChatId ?? null);
         } else {
           toast.error(json.error?.message || "No se pudieron cargar los datos");
@@ -142,6 +161,15 @@ export default function SettingsPage() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+
+    fetch("/api/telegram/bot")
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return;
+        if (json.success) setBotUsername(json.data?.username ?? null);
+      })
+      .catch(() => {});
+
     return () => {
       cancelled = true;
     };
@@ -177,10 +205,11 @@ export default function SettingsPage() {
         setSaving(false);
         return;
       }
-      const d = json.data as { settings: Record<string, unknown>; businessHours: HourEntry[]; testimonials: TestimonialEntry[]; telegramEnvChatId?: string | null };
+      const d = json.data as { settings: Record<string, unknown>; businessHours: HourEntry[]; testimonials: TestimonialEntry[]; palettes?: PaletteOption[]; telegramEnvChatId?: string | null };
       setForm(pickScalars(d.settings ?? {}));
       setHours(normalizeHours(d.businessHours ?? []));
       setTestimonials(d.testimonials ?? []);
+      setPalettes(d.palettes ?? []);
       setEnvChatId(d.telegramEnvChatId ?? null);
       toast.success("Configuración guardada");
     } catch {
@@ -338,133 +367,180 @@ export default function SettingsPage() {
           {tab === "general" && (
             <>
               <Card title="Identidad" description="Nombre y textos que se muestran en la web y el panel.">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Nombre del negocio">
-                <input required value={form.businessName} onChange={(e) => set("businessName", e.target.value)} className={inputClass} />
-              </Field>
-              <Field label="Eslogan (tagline del hero)">
-                <input value={form.tagline} onChange={(e) => set("tagline", e.target.value)} className={inputClass} />
-              </Field>
-              <Field label="Descripción" wide>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => set("description", e.target.value)}
-                  className="mt-1.5 min-h-20 w-full resize-y rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none"
-                />
-              </Field>
-            </div>
-          </Card>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Nombre del negocio">
+                    <input required value={form.businessName} onChange={(e) => set("businessName", e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="Subnombre">
+                    <input value={form.subname} onChange={(e) => set("subname", e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="Subtítulo">
+                    <input value={form.subtitle} onChange={(e) => set("subtitle", e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="Eslogan">
+                    <input value={form.slogan} onChange={(e) => set("slogan", e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="Tagline del hero">
+                    <input value={form.tagline} onChange={(e) => set("tagline", e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="Descripción" wide>
+                    <textarea
+                      value={form.description}
+                      onChange={(e) => set("description", e.target.value)}
+                      className="mt-1.5 min-h-20 w-full resize-y rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none"
+                    />
+                  </Field>
+                </div>
+              </Card>
 
-          <Card title="Imágenes" description="Logo, favicon e imagen principal. Si no se sube ninguna se usa una imagen local por defecto.">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <BrandImageField label="Logo" value={form.logoUrl} onChange={(v) => set("logoUrl", v)} />
-              <BrandImageField label="Favicon" value={form.faviconUrl} onChange={(v) => set("faviconUrl", v)} />
-              <BrandImageField label="Imagen del hero" value={form.heroImageUrl} onChange={(v) => set("heroImageUrl", v)} />
-            </div>
-          </Card>
+              <Card title="Imágenes" description="Logo, favicon, imagen principal y fondo del hero. Si no se sube alguna se usa un recurso local por defecto.">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <BrandImageField label="Logo" value={form.logoUrl} onChange={(v) => set("logoUrl", v)} />
+                  <BrandImageField label="Favicon" value={form.faviconUrl} onChange={(v) => set("faviconUrl", v)} />
+                  <BrandImageField label="Imagen del hero" value={form.heroImageUrl} onChange={(v) => set("heroImageUrl", v)} />
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <BrandImageField
+                      label="Imagen de fondo del hero"
+                      description="La entrada del negocio. Debe ser horizontal (paisaje) con relación de aspecto 1.91:1."
+                      value={form.heroBackgroundUrl}
+                      onChange={(v) => set("heroBackgroundUrl", v)}
+                      aspectRatio={1.91}
+                    />
+                  </div>
+                </div>
+              </Card>
 
-          <Card title="Contacto" description="Datos que se muestran en la sección de contacto y el footer.">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Teléfono">
-                <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inputClass} />
-              </Field>
-              <Field label="WhatsApp">
-                <input value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} className={inputClass} />
-              </Field>
-              <Field label="Correo">
-                <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} className={inputClass} />
-              </Field>
-              <Field label="Dirección">
-                <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inputClass} />
-              </Field>
-              <Field label="URL de Google Maps" wide>
-                <input value={form.mapsUrl} onChange={(e) => set("mapsUrl", e.target.value)} className={inputClass} />
-              </Field>
-              <Field label="Instagram">
-                <input value={form.instagramUrl} onChange={(e) => set("instagramUrl", e.target.value)} className={inputClass} />
-              </Field>
-              <Field label="Facebook">
-                <input value={form.facebookUrl} onChange={(e) => set("facebookUrl", e.target.value)} className={inputClass} />
-              </Field>
-            </div>
-          </Card>
+              <Card title="Contacto" description="Datos que se muestran en la sección de contacto y el footer.">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Teléfono">
+                    <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="WhatsApp">
+                    <input value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="Correo">
+                    <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="Dirección">
+                    <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="URL de Google Maps" wide>
+                    <input value={form.mapsUrl} onChange={(e) => set("mapsUrl", e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="Instagram">
+                    <input value={form.instagramUrl} onChange={(e) => set("instagramUrl", e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="Facebook">
+                    <input value={form.facebookUrl} onChange={(e) => set("facebookUrl", e.target.value)} className={inputClass} />
+                  </Field>
+                </div>
+              </Card>
 
-          <Card title="Operación" description="Moneda, zona horaria y el paso de la agenda.">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Moneda (ISO 3 letras)">
-                <input value={form.currency} onChange={(e) => set("currency", e.target.value.toUpperCase())} className={inputClass} list="currency-list" />
-              </Field>
-              <Field label="Zona horaria">
-                <input value={form.timezone} onChange={(e) => set("timezone", e.target.value)} className={inputClass} list="tz-list" />
-              </Field>
-              <Field label="Intervalo de agenda (min)">
-                <input
-                  type="number"
-                  min={5}
-                  max={240}
-                  value={form.appointmentSlot}
-                  onChange={(e) => set("appointmentSlot", e.target.value)}
-                  className={inputClass}
-                />
-              </Field>
-            </div>
-            <datalist id="currency-list">
-              {["USD", "EUR", "VES", "COP", "ARS", "MXN"].map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-            <datalist id="tz-list">
-              {["America/Caracas", "America/Bogota", "America/Mexico_City", "America/Argentina/Buenos_Aires", "Europe/Madrid", "UTC"].map((t) => (
-                <option key={t} value={t} />
-              ))}
-            </datalist>
-          </Card>
+              <Card title="Operación" description="Moneda, zona horaria y el paso de la agenda.">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field label="Moneda (ISO 3 letras)">
+                    <input value={form.currency} onChange={(e) => set("currency", e.target.value.toUpperCase())} className={inputClass} list="currency-list" />
+                  </Field>
+                  <Field label="Zona horaria">
+                    <input value={form.timezone} onChange={(e) => set("timezone", e.target.value)} className={inputClass} list="tz-list" />
+                  </Field>
+                  <Field label="Intervalo de agenda (min)">
+                    <input
+                      type="number"
+                      min={5}
+                      max={240}
+                      value={form.appointmentSlot}
+                      onChange={(e) => set("appointmentSlot", e.target.value)}
+                      className={inputClass}
+                    />
+                  </Field>
+                </div>
+                <datalist id="currency-list">
+                  {["USD", "EUR", "VES", "COP", "ARS", "MXN"].map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+                <datalist id="tz-list">
+                  {["America/Caracas", "America/Bogota", "America/Mexico_City", "America/Argentina/Buenos_Aires", "Europe/Madrid", "UTC"].map((t) => (
+                    <option key={t} value={t} />
+                  ))}
+                </datalist>
+              </Card>
+
+              <Card title="Apariencia" description="Paleta de colores del sitio público. El landing siempre se muestra en modo oscuro.">
+                {palettes.length > 0 ? (
+                  <PalettePicker
+                    palettes={palettes}
+                    value={form.paletteSlug || null}
+                    onChange={(slug) => set("paletteSlug", slug ?? "")}
+                  />
+                ) : (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">Sin paletas disponibles.</p>
+                )}
+              </Card>
             </>
           )}
 
           {tab === "notificaciones" && (
             <Card title="Notificaciones de Telegram" description="Chat que recibe los avisos de citas. Si se deja vacío se usa el valor de .env (TELEGRAM_CHAT_ID).">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Chat ID de Telegram">
-                <input
-                  value={form.telegramChatId}
-                  onChange={(e) => set("telegramChatId", e.target.value)}
-                  className={inputClass}
-                  placeholder="ej. -1001234567890"
-                />
-              </Field>
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  onClick={testTelegram}
-                  disabled={testing}
-                  title="Envía un mensaje de prueba al chat configurado"
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm font-semibold text-zinc-700 dark:text-zinc-300 transition-colors hover:border-zinc-300 dark:hover:border-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50"
-                >
-                  {testing ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
-                  Enviar prueba
-                </button>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Chat ID de Telegram">
+                  <input
+                    value={form.telegramChatId}
+                    onChange={(e) => set("telegramChatId", e.target.value)}
+                    className={inputClass}
+                    placeholder="ej. -1001234567890"
+                  />
+                </Field>
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={testTelegram}
+                    disabled={testing}
+                    title="Envía un mensaje de prueba al chat configurado"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm font-semibold text-zinc-700 dark:text-zinc-300 transition-colors hover:border-zinc-300 dark:hover:border-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+                  >
+                    {testing ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                    Enviar prueba
+                  </button>
+                </div>
               </div>
-            </div>
-            <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-              Se usa:{" "}
-              <code className="rounded bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5">
-                {form.telegramChatId.trim() || envChatId || "—"}
-              </code>
-              {" · fuente: "}
-              {form.telegramChatId.trim()
-                ? "ajustes"
-                : envChatId
-                  ? "variable de entorno (TELEGRAM_CHAT_ID)"
-                  : "ninguna"}
-            </p>
-          </Card>
+              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                Se usa:{" "}
+                <code className="rounded bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5">
+                  {form.telegramChatId.trim() || envChatId || "—"}
+                </code>
+                {" · fuente: "}
+                {form.telegramChatId.trim()
+                  ? "ajustes"
+                  : envChatId
+                    ? "variable de entorno (TELEGRAM_CHAT_ID)"
+                    : "ninguna"}
+              </p>
+
+              {(form.telegramChatId.trim() || envChatId) && botUsername && (
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <a
+                    href={`https://t.me/${botUsername}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm font-semibold text-zinc-700 dark:text-zinc-300 transition-colors hover:border-zinc-300 dark:hover:border-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                  >
+                    <Link size={15} />
+                    Abrir bot en Telegram
+                    <span className="font-mono text-xs font-medium text-zinc-400 dark:text-zinc-500">
+                      @{botUsername}
+                    </span>
+                  </a>
+                </div>
+              )}
+            </Card>
           )}
 
           {tab === "horarios" && (
               <Card title="Horarios" description="Días y horas laborables (mostrados en el footer).">
-              <BusinessHoursEditor value={hours} onChange={setHours} />
-            </Card>
+                <BusinessHoursEditor value={hours} onChange={setHours} />
+              </Card>
           )}
 
           {tab === "testimonios" && (
@@ -475,115 +551,115 @@ export default function SettingsPage() {
 
           {tab === "base-de-datos" && (
             <>
-            <Card title="Backup de la base de datos" description="Descarga una copia completa de todas las tablas en un archivo JSON.">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="max-w-md text-xs text-zinc-500 dark:text-zinc-400">
-                  El archivo incluye todas las tablas (usuarios, clientes, citas, pagos, visitantes, bitácora…).{" "}
-                  <span className="font-medium text-red-500 dark:text-red-400">Contiene datos sensibles</span> (hashes de contraseña y datos personales); guárdalo en un lugar seguro.
+              <Card title="Backup de la base de datos" description="Descarga una copia completa de todas las tablas en un archivo JSON.">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="max-w-md text-xs text-zinc-500 dark:text-zinc-400">
+                    El archivo incluye todas las tablas (usuarios, clientes, citas, pagos, visitantes, bitácora…).{" "}
+                    <span className="font-medium text-red-500 dark:text-red-400">Contiene datos sensibles</span> (hashes de contraseña y datos personales); guárdalo en un lugar seguro.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={downloadBackup}
+                    disabled={backingUp}
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-zinc-950 dark:bg-gold px-5 text-sm font-semibold text-white dark:text-zinc-950 transition-colors hover:bg-zinc-800 dark:hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {backingUp ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                    Descargar backup
+                  </button>
+                </div>
+              </Card>
+
+              <Card title="Restaurar base de datos" description="Reemplaza los datos actuales por los de un archivo JSON descargado con «Descargar backup». Esta acción no se puede deshacer.">
+                <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <div className="text-sm text-amber-800 dark:text-amber-200">
+                      <strong className="font-semibold">Se reemplazarán todos los datos actuales.</strong>
+                      <p className="mt-1 text-xs text-amber-700/90 dark:text-amber-300/80">
+                        Se restaurarán las tablas del archivo elegido. Asegúrate de que sea un backup legítimo:{" "}
+                        <span className="font-medium">contiene datos sensibles</span> (hashes de contraseña y datos personales).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    onClick={() => restoreInputRef.current?.click()}
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm font-semibold text-zinc-700 dark:text-zinc-300 transition-colors hover:border-zinc-300 dark:hover:border-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                  >
+                    <Upload size={15} />
+                    Seleccionar archivo
+                  </button>
+                  <input ref={restoreInputRef} type="file" accept=".json,application/json" onChange={onRestoreFileChange} className="hidden" />
+                  <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                    {restoreFile ? restoreFile.name : "Ningún archivo seleccionado"}
+                  </span>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <Field label={`Escribe "${RESTORE_CONFIRM_WORD}" para habilitar la restauración`}>
+                    <input
+                      value={restoreWord}
+                      onChange={(e) => setRestoreWord(e.target.value)}
+                      placeholder={RESTORE_CONFIRM_WORD}
+                      autoComplete="off"
+                      spellCheck={false}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <button
+                    type="button"
+                    onClick={restoreDb}
+                    disabled={restoring || !restoreFile || restoreWord.trim().toUpperCase() !== RESTORE_CONFIRM_WORD}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-zinc-950 dark:bg-gold px-5 text-sm font-semibold text-white dark:text-zinc-950 transition-colors hover:bg-zinc-800 dark:hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {restoring ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                    Restaurar base de datos
+                  </button>
+                </div>
+              </Card>
+
+              <Card title="Reiniciar datos" description="Limpia las tablas de operación del negocio. Esta acción no se puede deshacer.">
+                <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-500 dark:text-red-400" />
+                    <div className="text-sm text-red-700 dark:text-red-300">
+                      <strong className="font-semibold">Se perderán datos de forma permanente.</strong>
+                      <p className="mt-1 text-xs text-red-600/90 dark:text-red-300/80">
+                        Se vaciarán las tablas: <code>{`Appointment`}</code>, <code>{`Barber`}</code>, <code>{`BusinessHour`}</code>, <code>{`Client`}</code>, <code>{`Payment`}</code> y <code>{`Service`}</code>.{" "}
+                        La configuración, usuarios y testimonios se conservan.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <Field label={`Escribe "${RESET_CONFIRM_WORD}" para habilitar el reinicio`}>
+                    <input
+                      value={confirmWord}
+                      onChange={(e) => setConfirmWord(e.target.value)}
+                      placeholder={RESET_CONFIRM_WORD}
+                      autoComplete="off"
+                      spellCheck={false}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <button
+                    type="button"
+                    onClick={resetDb}
+                    disabled={resetting || confirmWord.trim().toUpperCase() !== RESET_CONFIRM_WORD}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {resetting ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />}
+                    Reiniciar datos
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
+                  Esta acción borra los registros de las tablas indicadas y no admite deshacer.
                 </p>
-                <button
-                  type="button"
-                  onClick={downloadBackup}
-                  disabled={backingUp}
-                  className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-zinc-950 dark:bg-gold px-5 text-sm font-semibold text-white dark:text-zinc-950 transition-colors hover:bg-zinc-800 dark:hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {backingUp ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
-                  Descargar backup
-                </button>
-              </div>
-            </Card>
-
-            <Card title="Restaurar base de datos" description="Reemplaza los datos actuales por los de un archivo JSON descargado con «Descargar backup». Esta acción no se puede deshacer.">
-              <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 p-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
-                  <div className="text-sm text-amber-800 dark:text-amber-200">
-                    <strong className="font-semibold">Se reemplazarán todos los datos actuales.</strong>
-                    <p className="mt-1 text-xs text-amber-700/90 dark:text-amber-300/80">
-                      Se restaurarán las tablas del archivo elegido. Asegúrate de que sea un backup legítimo:{" "}
-                      <span className="font-medium">contiene datos sensibles</span> (hashes de contraseña y datos personales).
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <button
-                  type="button"
-                  onClick={() => restoreInputRef.current?.click()}
-                  className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 text-sm font-semibold text-zinc-700 dark:text-zinc-300 transition-colors hover:border-zinc-300 dark:hover:border-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                >
-                  <Upload size={15} />
-                  Seleccionar archivo
-                </button>
-                <input ref={restoreInputRef} type="file" accept=".json,application/json" onChange={onRestoreFileChange} className="hidden" />
-                <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-                  {restoreFile ? restoreFile.name : "Ningún archivo seleccionado"}
-                </span>
-              </div>
-
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-                <Field label={`Escribe "${RESTORE_CONFIRM_WORD}" para habilitar la restauración`}>
-                  <input
-                    value={restoreWord}
-                    onChange={(e) => setRestoreWord(e.target.value)}
-                    placeholder={RESTORE_CONFIRM_WORD}
-                    autoComplete="off"
-                    spellCheck={false}
-                    className={inputClass}
-                  />
-                </Field>
-                <button
-                  type="button"
-                  onClick={restoreDb}
-                  disabled={restoring || !restoreFile || restoreWord.trim().toUpperCase() !== RESTORE_CONFIRM_WORD}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-zinc-950 dark:bg-gold px-5 text-sm font-semibold text-white dark:text-zinc-950 transition-colors hover:bg-zinc-800 dark:hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {restoring ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-                  Restaurar base de datos
-                </button>
-              </div>
-            </Card>
-
-            <Card title="Reiniciar datos" description="Limpia las tablas de operación del negocio. Esta acción no se puede deshacer.">
-              <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 p-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle size={18} className="mt-0.5 shrink-0 text-red-500 dark:text-red-400" />
-                  <div className="text-sm text-red-700 dark:text-red-300">
-                    <strong className="font-semibold">Se perderán datos de forma permanente.</strong>
-                    <p className="mt-1 text-xs text-red-600/90 dark:text-red-300/80">
-                      Se vaciarán las tablas: <code>{`Appointment`}</code>, <code>{`Barber`}</code>, <code>{`BusinessHour`}</code>, <code>{`Client`}</code>, <code>{`Payment`}</code> y <code>{`Service`}</code>.{" "}
-                      La configuración, usuarios y testimonios se conservan.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-                <Field label={`Escribe "${RESET_CONFIRM_WORD}" para habilitar el reinicio`}>
-                  <input
-                    value={confirmWord}
-                    onChange={(e) => setConfirmWord(e.target.value)}
-                    placeholder={RESET_CONFIRM_WORD}
-                    autoComplete="off"
-                    spellCheck={false}
-                    className={inputClass}
-                  />
-                </Field>
-                <button
-                  type="button"
-                  onClick={resetDb}
-                  disabled={resetting || confirmWord.trim().toUpperCase() !== RESET_CONFIRM_WORD}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {resetting ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />}
-                  Reiniciar datos
-                </button>
-              </div>
-              <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
-                Esta acción borra los registros de las tablas indicadas y no admite deshacer.
-              </p>
-            </Card>
+              </Card>
             </>
           )}
         </>
@@ -650,7 +726,44 @@ function Field({ label, children, wide = false }: { label: string; children: Rea
   );
 }
 
-function BrandImageField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function validateAspectRatio(file: File, target: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const ratio = img.naturalWidth / img.naturalHeight;
+      if (Math.abs(ratio - target) > 0.06) {
+        reject(
+          new Error(
+            `La imagen debe ser horizontal con relación de aspecto ${target}:1 (paisaje). Recibiste una de ${ratio.toFixed(2)}:1.`,
+          ),
+        );
+      } else {
+        resolve();
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("No se pudo leer la imagen. Usa un archivo PNG, JPG, GIF o SVG válido."));
+    };
+    img.src = url;
+  });
+}
+
+function BrandImageField({
+  label,
+  description,
+  value,
+  onChange,
+  aspectRatio,
+}: {
+  label: string;
+  description?: string;
+  value: string;
+  onChange: (value: string) => void;
+  aspectRatio?: number;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { startUpload, isUploading } = useUploadThing("brandingUploader", {
     onClientUploadComplete: (files) => {
@@ -671,6 +784,14 @@ function BrandImageField({ label, value, onChange }: { label: string; value: str
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+    if (aspectRatio) {
+      try {
+        await validateAspectRatio(file, aspectRatio);
+      } catch (err) {
+        toast.error((err as Error).message);
+        return;
+      }
+    }
     await startUpload([file]);
   }
 
@@ -717,6 +838,7 @@ function BrandImageField({ label, value, onChange }: { label: string; value: str
 
       <p className="flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-zinc-500">
         <RefreshCw size={11} />
+        {description ? `${description} ` : ""}
         PNG, JPG o SVG · máx. 4 MB
       </p>
     </div>

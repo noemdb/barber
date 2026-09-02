@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Manrope, Oswald } from "next/font/google";
 import { Toaster } from "sonner";
+import { prisma } from "@/lib/prisma";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -16,13 +17,16 @@ const oswald = Oswald({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "BarberService",
-  description: "Gestión integral de barbería",
-  icons: {
-    icon: "/icon.svg",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await prisma.businessSettings.findFirst();
+  return {
+    title: settings?.businessName ?? "BarberService",
+    description: "Gestión integral de barbería",
+    icons: {
+      icon: settings?.faviconUrl || "/icon.svg",
+    },
+  };
+}
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

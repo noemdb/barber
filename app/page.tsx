@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -30,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const settings = await prisma.businessSettings.findFirst();
   return {
     title: settings?.businessName ?? "BarberService",
-    description: "Cortes de cabello, barba y degradados de precisión. Reserva tu cita online en minutos con los mejores barberos.",
+    description: settings?.tagline ?? "Cortes de cabello, barba y degradados de precisión. Reserva tu cita online en minutos con los mejores barberos.",
   };
 }
 
@@ -62,10 +63,23 @@ export default async function Home() {
 
   const businessName = settings?.businessName ?? "BarberService";
   const currency = settings?.currency ?? "USD";
+
+  const palette =
+    (settings?.paletteSlug
+      ? await prisma.colorPalette.findUnique({ where: { slug: settings.paletteSlug } })
+      : null) ?? (await prisma.colorPalette.findFirst({ where: { isDefault: true }, orderBy: { order: "asc" } }));
+
+  const accentStyle: CSSProperties | undefined = palette
+    ? ({
+        "--color-gold": palette.accent,
+        "--color-gold-light": palette.accentLight,
+        "--color-gold-dark": palette.accentDark,
+      } as Record<string, string>)
+    : undefined;
+
   const startingPrice = services.length ? Math.min(...services.map((s) => s.priceCents)) : 0;
   const featured = barbers[0];
   const heroImage = settings?.heroImageUrl ?? "/image/000000000d6081f68d1ea23de4944a97.png";
-  const tagline = settings?.tagline ?? "Barbería premium";
   const heroDescription =
     settings?.description ??
     "Cortes de cabello, barba y degradados de precisión, hechos a tu medida. Elige tu servicio, elige a tu barbero y reserva en minutos, sin esperas.";
@@ -83,61 +97,91 @@ export default async function Home() {
   const mapsEmbedUrl = await toMapsEmbedUrl(settings?.mapsUrl, settings?.address);
 
   return (
-    <main data-theme="dark" className="min-h-screen w-full min-w-0 overflow-x-clip bg-zinc-950 text-white">
+    <main data-theme="dark" style={accentStyle} className="min-h-screen w-full min-w-0 overflow-x-clip bg-zinc-950 text-white">
       <LandingNav businessName={businessName} logoUrl={settings?.logoUrl} />
 
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(255,255,255,0.12),transparent_34%),radial-gradient(circle_at_85%_80%,rgba(200,164,92,0.2),transparent_40%),radial-gradient(circle_at_78%_42%,rgba(200,164,92,0.16),transparent_55%)]" />
+        {settings?.heroBackgroundUrl && (
+          <div className="pointer-events-none absolute inset-0">
+            <Image
+              src={settings.heroBackgroundUrl}
+              alt={`Entrada de ${businessName}`}
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-zinc-950/85 via-zinc-950/70 to-zinc-950/85" />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(255,255,255,0.12),transparent_34%),radial-gradient(circle_at_85%_80%,var(--gold-glow-20),transparent_40%),radial-gradient(circle_at_78%_42%,var(--gold-glow-16),transparent_55%)]" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.05]" style={{ backgroundImage: grain }} />
 
         <div className="relative mx-auto grid max-w-6xl gap-12 px-6 pb-14 pt-28 md:pb-16 md:pt-32 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div>
             <Reveal>
-              <p className="flex items-center gap-3 text-[11px] uppercase tracking-[0.25em] text-gold">
-                <span className="h-px w-8 bg-gold/60" />
-                Desde {new Date().getFullYear() - 3} · {tagline}
-              </p>
-              <h1 className="mt-4 font-display text-5xl font-semibold uppercase leading-[1.05] tracking-tight md:text-6xl">
-                El arte de un <span className="text-gold">buen corte.</span>
-              </h1>
-              <p className="mt-4 max-w-lg text-base leading-6 text-zinc-400">
-                {heroDescription}
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <BookingButton className="group flex h-11 items-center gap-2 rounded-full bg-gold px-6 text-sm font-semibold text-zinc-950 transition-all hover:bg-gold-light hover:shadow-[0_8px_30px_rgba(200,164,92,0.35)]">
-                  <Calendar size={15} /> Reservar cita
-                  <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-                </BookingButton>
-                <a
-                  href="#servicios"
-                  className="flex h-11 items-center rounded-full border border-white/15 px-6 text-sm font-semibold text-zinc-200 transition-colors hover:border-gold/60 hover:text-gold"
-                >
-                  Ver servicios
-                </a>
-              </div>
-              <div className="mt-7 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-white/10 pt-5 text-[13px] text-zinc-500">
-                <span className="flex items-center gap-2">
-                  <Star size={14} className="fill-gold text-gold" /> 5.0 · Clientes satisfechos
-                </span>
-                <span className="flex items-center gap-2">
-                  <Calendar size={14} /> Reserva en 2 minutos
-                </span>
-                <span className="flex items-center gap-2">
-                  <Sparkles size={14} /> Estilo garantizado
-                </span>
+              <div>
+                <p className="flex items-center gap-3 text-[11px] uppercase tracking-[0.25em] text-gold">
+                  <span className="h-px w-8 bg-gold/60" />
+                  Desde {new Date().getFullYear() - 3} · {settings?.tagline ?? "Barbería premium"}
+                </p>
+                <h1 className="mt-4 font-display text-5xl font-semibold uppercase leading-[1.05] tracking-tight md:text-6xl">
+                  {settings?.businessName ?? "BarberService"}
+                </h1>
+                {settings?.subname && (
+                  <p className="mt-2 font-display text-lg font-medium normal-case leading-snug tracking-tight text-zinc-200 md:text-2xl">
+                    {settings.subname}
+                  </p>
+                )}
+                {settings?.slogan && (
+                  <p className="mt-3 font-display text-2xl font-medium normal-case leading-snug tracking-tight text-gold md:text-3xl">
+                    {settings.slogan}
+                  </p>
+                )}
+                {settings?.subtitle && (
+                  <p className="mt-4 max-w-lg text-base leading-6 text-zinc-400">
+                    {settings.subtitle}
+                  </p>
+                )}
+                <p className="mt-3 max-w-lg text-[15px] leading-6 text-zinc-500">
+                  {heroDescription}
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <BookingButton className="group flex h-11 items-center gap-2 rounded-full bg-gold px-6 text-sm font-semibold text-zinc-950 transition-all hover:bg-gold-light hover:shadow-[0_8px_30px_var(--gold-glow-35)]">
+                    <Calendar size={15} /> Reservar cita
+                    <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+                  </BookingButton>
+                  <a
+                    href="#servicios"
+                    className="flex h-11 items-center rounded-full border border-white/15 px-6 text-sm font-semibold text-zinc-200 transition-colors hover:border-gold/60 hover:text-gold"
+                  >
+                    Ver servicios
+                  </a>
+                </div>
+                <div className="mt-7 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-white/10 pt-5 text-[13px] text-zinc-500">
+                  <span className="flex items-center gap-2">
+                    <Star size={14} className="fill-gold text-gold" /> 5.0 · Clientes satisfechos
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <Calendar size={14} /> Reserva en 2 minutos
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <Sparkles size={14} /> Estilo garantizado
+                  </span>
+                </div>
               </div>
             </Reveal>
           </div>
 
           <Reveal delay={120} className="relative hidden lg:block">
             <div className="relative">
-              <div className="pointer-events-none absolute -inset-x-12 -inset-y-10 bg-[radial-gradient(circle_at_50%_45%,rgba(200,164,92,0.22),transparent_62%)] blur-2xl" />
+              <div className="pointer-events-none absolute -inset-x-12 -inset-y-10 bg-[radial-gradient(circle_at_50%_45%,var(--gold-glow-22),transparent_62%)] blur-2xl" />
               <div className="pointer-events-none absolute -inset-x-6 -inset-y-4 rounded-[3rem] border border-gold/15" />
               <div
                 className="relative ml-auto aspect-[4/5] w-full max-w-md"
               >
                 <div
-                  className="absolute inset-0 overflow-hidden rounded-[2rem] border border-white/5 shadow-[0_0_90px_rgba(200,164,92,0.12),0_30px_80px_-20px_rgba(0,0,0,0.7)]"
+                  className="absolute inset-0 overflow-hidden rounded-[2rem] border border-white/5 shadow-[0_0_90px_var(--gold-glow-12),0_30px_80px_-20px_rgba(0,0,0,0.7)]"
                 style={{
                   maskImage:
                     "radial-gradient(ellipse 112% 100% at 50% 46%, black 62%, transparent 98%)",
@@ -148,13 +192,13 @@ export default async function Home() {
                 <Image
                   src={heroImage}
                   alt={`${businessName} — interior del local`}
-                  className="absolute inset-0 object-cover rounded-[2rem]"
+                  className="absolute inset-0 object-cover rounded-[2rem] opacity-60"
                   fill
                   priority
                   sizes="(max-width: 768px) 100vw, 28rem"
                 />
                 <div className="absolute inset-0 bg-gradient-to-br from-zinc-800/35 via-zinc-900/25 to-black/45" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(200,164,92,0.28),transparent_48%),radial-gradient(circle_at_78%_84%,rgba(200,164,92,0.16),transparent_52%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,var(--gold-glow-28),transparent_48%),radial-gradient(circle_at_78%_84%,var(--gold-glow-16),transparent_52%)]" />
                 <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent_0px,transparent_139px,rgba(255,255,255,0.08)_140px)]" />
                 </div>
 
@@ -241,28 +285,36 @@ export default async function Home() {
         <div className="mt-7 divide-y divide-white/10 border-y border-white/10">
           {services.map((service, i) => (
             <Reveal key={service.id} delay={Math.min(i, 4) * 60}>
-              <div className="group flex flex-col gap-2 px-1 py-4 transition-colors hover:bg-white/[0.03] sm:flex-row sm:items-center sm:gap-5 md:px-4">
+              <div className="group flex items-center gap-3 px-1 py-4 transition-colors hover:bg-white/[0.03] sm:gap-5 md:px-4">
                 <span className="font-display text-xs font-semibold text-gold/70">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <div className="flex items-center gap-3">
+                <div className="order-1 min-w-0 flex-1 sm:order-none">
+                  <h3 className="font-display text-lg font-medium uppercase leading-tight tracking-tight md:text-xl">
+                    {service.name}
+                  </h3>
+                  {service.description && <p className="mt-0.5 text-[13px] text-zinc-500">{service.description}</p>}
+                  <div className="mt-1.5 flex items-center gap-4 sm:hidden">
+                    <span className="flex items-center gap-1.5 text-[13px] text-zinc-500">
+                      <Clock size={13} /> {service.durationMin} min
+                    </span>
+                    <span className="font-display text-base font-semibold text-gold">
+                      {money(service.priceCents, currency)}
+                    </span>
+                  </div>
+                </div>
+                <div className="order-2 shrink-0 sm:order-none">
                   {service.imageUrl ? (
-                    <div className="relative h-12 w-12 overflow-hidden rounded-full border border-gold/20 bg-zinc-900">
-                      <Image src={service.imageUrl} alt={service.name} fill className="object-cover" sizes="48px" />
+                    <div className="relative h-14 w-14 overflow-hidden rounded-full border border-gold/20 bg-zinc-900 sm:h-12 sm:w-12">
+                      <Image src={service.imageUrl} alt={service.name} fill className="object-cover" sizes="(min-width: 640px) 48px, 56px" />
                     </div>
                   ) : (
-                    <div className="grid h-12 w-12 place-items-center rounded-full border border-gold/20 bg-zinc-900 text-gold">
+                    <div className="grid h-14 w-14 place-items-center rounded-full border border-gold/20 bg-zinc-900 text-gold sm:h-12 sm:w-12">
                       <Scissors size={16} />
                     </div>
                   )}
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-display text-lg font-medium uppercase tracking-tight md:text-xl">
-                    {service.name}
-                  </h3>
-                  {service.description && <p className="mt-0.5 text-[13px] text-zinc-500">{service.description}</p>}
-                </div>
-                <div className="flex items-center gap-5 sm:gap-8">
+                <div className="hidden items-center gap-5 sm:flex sm:gap-8">
                   <span className="flex items-center gap-1.5 text-[13px] text-zinc-500">
                     <Clock size={13} /> {service.durationMin} min
                   </span>
@@ -291,7 +343,7 @@ export default async function Home() {
           {barbers.map((barber, i) => (
             <Reveal key={barber.id} delay={i * 70}>
               <div className="group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-zinc-900 to-zinc-950 p-3 transition-all duration-300 hover:-translate-y-1 hover:border-gold/40 sm:gap-4 sm:p-4">
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold-light via-gold to-gold-dark font-display text-sm font-semibold text-zinc-950 shadow-[0_4px_20px_rgba(200,164,92,0.25)] transition-transform duration-300 group-hover:scale-105 sm:h-14 sm:w-14">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold-light via-gold to-gold-dark font-display text-sm font-semibold text-zinc-950 shadow-[0_4px_20px_var(--gold-glow-25)] transition-transform duration-300 group-hover:scale-105 sm:h-14 sm:w-14">
                   {barber.avatar ? (
                     <Image
                       src={barber.avatar}
@@ -445,7 +497,7 @@ export default async function Home() {
 
       <section id="contacto" className="mx-auto max-w-6xl px-6 py-14 md:py-16">
         <div className="relative overflow-hidden rounded-[2rem] border border-gold/30 bg-zinc-900 px-6 py-10 text-center md:px-12">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(200,164,92,0.2),transparent_60%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,var(--gold-glow-20),transparent_60%)]" />
           <Reveal className="relative">
             <p className="text-[11px] uppercase tracking-[0.3em] text-gold">Tu próximo corte te espera</p>
             <h2 className="mx-auto mt-2 max-w-2xl font-display text-4xl font-semibold uppercase leading-tight tracking-tight md:text-5xl">
@@ -544,6 +596,19 @@ export default async function Home() {
                 </div>
                 <div className="font-display text-base font-semibold uppercase tracking-tight">{businessName}</div>
               </div>
+              {settings?.subname && (
+                <p className="mt-1 font-display text-sm font-medium normal-case tracking-tight text-zinc-300">
+                  {settings.subname}
+                </p>
+              )}
+              {settings?.subtitle && (
+                <p className="mt-2 max-w-xs text-[13px] leading-5 text-zinc-400">{settings.subtitle}</p>
+              )}
+              {settings?.slogan && (
+                <p className="mt-2 font-display text-sm font-medium normal-case tracking-tight text-gold/90">
+                  {settings.slogan}
+                </p>
+              )}
               <p className="mt-3 max-w-xs text-[13px] leading-5 text-zinc-500">
                 Cortes, barba y estilo de primer nivel en un ambiente pensado para ti. Reserva
                 online y vive la experiencia.

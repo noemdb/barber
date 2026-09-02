@@ -16,12 +16,13 @@ function telegramChatPayload(settings: { telegramChatId: string | null } | null)
 }
 
 async function fetchSettingsPayload(id: string) {
-  const [settings, businessHours, testimonials] = await Promise.all([
+  const [settings, businessHours, testimonials, palettes] = await Promise.all([
     prisma.businessSettings.findUnique({ where: { id } }),
     prisma.businessHour.findMany({ where: { businessId: id }, orderBy: { dayOfWeek: "asc" } }),
     prisma.testimonial.findMany({ where: { businessId: id }, orderBy: { order: "asc" } }),
+    prisma.colorPalette.findMany({ orderBy: { order: "asc" } }),
   ]);
-  return { settings, businessHours, testimonials };
+  return { settings, businessHours, testimonials, palettes };
 }
 
 export async function GET() {

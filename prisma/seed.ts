@@ -34,6 +34,15 @@ const serviceSeed = [
   { name: "Peinado", description: "Lavado, secado y styling", durationMin: 20, priceCents: 1200 },
 ];
 
+const paletteSeed = [
+  { name: "Gold", slug: "gold", accent: "#c8a45c", accentLight: "#ddc692", accentDark: "#9c7c3f", isDefault: true },
+  { name: "Bronce", slug: "bronze", accent: "#b87333", accentLight: "#d9a05b", accentDark: "#8a5522", isDefault: false },
+  { name: "Esmeralda", slug: "emerald", accent: "#2ea66f", accentLight: "#5cc593", accentDark: "#1d7a4e", isDefault: false },
+  { name: "Rubí", slug: "ruby", accent: "#c0394b", accentLight: "#d9697a", accentDark: "#8f1f2e", isDefault: false },
+  { name: "Zafiro", slug: "sapphire", accent: "#3b6fd4", accentLight: "#6b9af0", accentDark: "#24488f", isDefault: false },
+  { name: "Amatista", slug: "amethyst", accent: "#8e5bd6", accentLight: "#b28ae8", accentDark: "#5e3399", isDefault: false },
+];
+
 const clientSeed = [
   { name: "Carlos Pérez", phone: "+58 412 400 0001", email: "carlos.perez@example.com" },
   { name: "Miguel Rodríguez", phone: "+58 412 400 0002", email: "miguel.rodriguez@example.com" },
@@ -137,6 +146,14 @@ async function main() {
   });
 
   const businessId = "settings";
+
+  for (const [index, palette] of paletteSeed.entries()) {
+    await prisma.colorPalette.upsert({
+      where: { slug: palette.slug },
+      update: {},
+      create: { ...palette, order: index },
+    });
+  }
 
   const hourCount = await prisma.businessHour.count({ where: { businessId } });
   if (hourCount === 0) {
