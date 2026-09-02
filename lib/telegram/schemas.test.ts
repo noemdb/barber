@@ -5,7 +5,10 @@ const base = {
   appointmentId: "clxabc123",
   clientName: "María",
   barberName: "Luis",
+  barberSpecialty: "Barbero especialista en barba",
   serviceName: "Corte",
+  serviceDurationMin: 30,
+  servicePriceCents: 1000,
   startsAt: "2026-09-01T15:00:00.000Z",
 };
 

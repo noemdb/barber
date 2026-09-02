@@ -4,7 +4,10 @@ export const AppointmentEventSchema = z.object({
   appointmentId: z.string().cuid("ID de cita inválido"),
   clientName: z.string().min(1, "El nombre del cliente es obligatorio"),
   barberName: z.string().min(1, "El nombre del barbero es obligatorio"),
+  barberSpecialty: z.string().nullable(),
   serviceName: z.string().min(1, "El nombre del servicio es obligatorio"),
+  serviceDurationMin: z.number().int().positive(),
+  servicePriceCents: z.number().int().nonnegative(),
   startsAt: z.coerce.date(),
 });
 export type AppointmentEvent = z.infer<typeof AppointmentEventSchema>;

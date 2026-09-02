@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { KeyRound, Pencil, Plus, Power, RefreshCw, Trash2 } from "lucide-react";
+import { money } from "@/lib/format";
 
 type Role = "OWNER" | "ADMIN" | "BARBER" | "CLIENT";
 type Barber = { id: string; name: string };
@@ -14,6 +15,17 @@ type User = {
   active: boolean;
   createdAt: string;
   barber: { id: string; name: string } | null;
+  client: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    notes: string | null;
+    active: boolean;
+    appointmentCount: number;
+    totalSpentCents: number;
+    lastAppointmentAt: string | null;
+  } | null;
 };
 
 const ROLES: Record<Role, string> = { OWNER: "Dueño", ADMIN: "Admin", BARBER: "Barbero", CLIENT: "Cliente" };
@@ -38,6 +50,7 @@ export default function UsersPage() {
   const [editing, setEditing] = useState<User | null | "new">(null);
   const [passwordFor, setPasswordFor] = useState<User | null>(null);
   const [deleting, setDeleting] = useState<User | null>(null);
+  const [currency, setCurrency] = useState("USD");
 
   const loadData = useCallback(async () => {
     const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
@@ -71,6 +84,16 @@ export default function UsersPage() {
     fetch("/api/barbers")
       .then((r) => r.json())
       .then((json) => setBarbers(json.success ? json.data : []));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((json) => {
+        const c = json?.data?.settings?.currency;
+        if (typeof c === "string" && c) setCurrency(c);
+      })
+      .catch(() => {});
   }, []);
 
   const filter = (next: Partial<{ q: string; role: string; active: string }>) => {
@@ -151,7 +174,7 @@ export default function UsersPage() {
               <tr>
                 <th className="px-4 py-3 font-medium">Usuario</th>
                 <th className="px-4 py-3 font-medium">Rol</th>
-                <th className="px-4 py-3 font-medium">Barbero</th>
+                <th className="px-4 py-3 font-medium">Perfil vinculado</th>
                 <th className="px-4 py-3 font-medium">Estado</th>
                 <th className="px-4 py-3 font-medium">Creado</th>
                 <th className="px-4 py-3 text-right font-medium">Acciones</th>
@@ -179,7 +202,11 @@ export default function UsersPage() {
                     <td className="px-4 py-3">
                       <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold ${roleColors[u.role]}`}>{ROLES[u.role]}</span>
                     </td>
-                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">{u.barber?.name ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      {u.role === "BARBER" && (u.barber?.name ?? <span className="font-medium text-amber-600 dark:text-amber-400">Sin perfil de barbero</span>)}
+                      {u.role === "CLIENT" && (u.client?.name ?? <span className="font-medium text-amber-600 dark:text-amber-400">Sin perfil de cliente</span>)}
+                      {u.role !== "BARBER" && u.role !== "CLIENT" && <span className="text-zinc-400 dark:text-zinc-500">—</span>}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold ${u.active ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"}`}>
                         {u.active ? "Activo" : "Inactivo"}
@@ -218,6 +245,7 @@ export default function UsersPage() {
         <UserFormDialog
           user={editing === "new" ? null : editing}
           barbers={barbers}
+          currency={currency}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); reload(); }}
           onChangePassword={editing !== "new" ? () => { setPasswordFor(editing as User); setEditing(null); } : undefined}
@@ -268,9 +296,10 @@ function Field({ label, children, wide = false }: { label: string; children: Rea
 
 const inputCls = "w-full h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100";
 
-function UserFormDialog({ user, barbers, onClose, onSaved, onChangePassword }: {
+function UserFormDialog({ user, barbers, currency, onClose, onSaved, onChangePassword }: {
   user: User | null;
   barbers: Barber[];
+  currency: string;
   onClose: () => void;
   onSaved: () => void;
   onChangePassword?: () => void;
@@ -326,7 +355,14 @@ function UserFormDialog({ user, barbers, onClose, onSaved, onChangePassword }: {
           <Field label="Correo"><input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={inputCls} /></Field>
           {!isEdit && <Field label="Contraseña"><input required minLength={8} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={inputCls} /></Field>}
           <Field label="Rol">
-            <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })} className={inputCls}>
+            <select
+              value={form.role}
+              onChange={(e) => {
+                const role = e.target.value as Role;
+                setForm({ ...form, role, barberId: role !== "BARBER" ? "" : form.barberId });
+              }}
+              className={inputCls}
+            >
               <option value="OWNER">Dueño</option>
               <option value="ADMIN">Admin</option>
               <option value="BARBER">Barbero</option>
@@ -339,14 +375,44 @@ function UserFormDialog({ user, barbers, onClose, onSaved, onChangePassword }: {
               <option value="false">Inactivo</option>
             </select>
           </Field>
-          <Field label="Vinculado a barbero (opcional)">
-            <select value={form.barberId} onChange={(e) => setForm({ ...form, barberId: e.target.value })} className={inputCls}>
-              <option value="">— Sin vínculo —</option>
-              {barbers.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
-          </Field>
+          {form.role === "BARBER" && (
+            <Field label="Vinculado a barbero (opcional)">
+              <select
+                value={form.barberId}
+                onChange={(e) => setForm({ ...form, barberId: e.target.value })}
+                className={inputCls}
+              >
+                <option value="">— Sin vínculo —</option>
+                {barbers.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </Field>
+          )}
+          {form.role === "CLIENT" && (
+            <div className="sm:col-span-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2.5 text-xs">
+              {user?.client ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <strong className="font-semibold text-zinc-800 dark:text-zinc-100">{user.client.name}</strong>
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold ${user.client.active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"}`}>{user.client.active ? "Activo" : "Inactivo"}</span>
+                  </div>
+                  <div className="grid gap-1 text-zinc-600 dark:text-zinc-400">
+                    {user.client.email && <p><span className="text-zinc-400 dark:text-zinc-500">Correo:</span> {user.client.email}</p>}
+                    {user.client.phone && <p><span className="text-zinc-400 dark:text-zinc-500">Teléfono:</span> {user.client.phone}</p>}
+                    {user.client.notes && <p><span className="text-zinc-400 dark:text-zinc-500">Notas:</span> {user.client.notes}</p>}
+                    <p><span className="text-zinc-400 dark:text-zinc-500">Citas registradas:</span> {user.client.appointmentCount}</p>
+                    <p><span className="text-zinc-400 dark:text-zinc-500">Total gastado:</span> {money(user.client.totalSpentCents, currency)}</p>
+                    <p><span className="text-zinc-400 dark:text-zinc-500">Última visita:</span> {user.client.lastAppointmentAt ? new Date(user.client.lastAppointmentAt).toLocaleDateString("es-ES") : "—"}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-amber-600 dark:text-amber-400">
+                  Sin perfil de cliente: se vinculará automáticamente por correo cuando el usuario haga su primera reserva.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mt-6 flex items-center justify-end gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">

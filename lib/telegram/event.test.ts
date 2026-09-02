@@ -54,7 +54,10 @@ describe("toTelegramEvent", () => {
       appointmentId: "clxabc123",
       clientName: "María",
       barberName: "Luis",
+      barberSpecialty: null,
       serviceName: "Corte",
+      serviceDurationMin: 30,
+      servicePriceCents: 1000,
       startsAt: appointment.startsAt,
     });
   });

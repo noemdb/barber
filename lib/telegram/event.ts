@@ -12,7 +12,10 @@ export function toTelegramEvent(appointment: AppointmentWithRelations): Appointm
     appointmentId: appointment.id,
     clientName: appointment.client.name,
     barberName: appointment.barber.name,
+    barberSpecialty: appointment.barber.specialty ?? null,
     serviceName: appointment.service.name,
+    serviceDurationMin: appointment.service.durationMin,
+    servicePriceCents: appointment.service.priceCents,
     startsAt: appointment.startsAt,
   };
 }

@@ -2,6 +2,7 @@ import { getBusinessTimezone } from "@/lib/time";
 import { getTelegramChatId } from "./chat-id";
 import { sendTelegramMessage } from "./notifier";
 import { buildNotificationText } from "./templates";
+import { getTelegramBusiness } from "./business";
 import {
   AppointmentEventSchema,
   NotificationTypeSchema,
@@ -22,8 +23,8 @@ export async function notifyAppointmentEvent(
     return;
   }
 
-  const timeZone = await getBusinessTimezone();
-  const text = buildNotificationText(type, event, { timeZone });
+  const [timeZone, business] = await Promise.all([getBusinessTimezone(), getTelegramBusiness()]);
+  const text = buildNotificationText(type, event, { timeZone, business });
   const result = await sendTelegramMessage(chatId, text);
 
   if (!result.ok) {

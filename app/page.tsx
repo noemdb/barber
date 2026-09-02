@@ -18,26 +18,68 @@ import {
 import { prisma } from "@/lib/prisma";
 import { money, initials } from "@/lib/format";
 import { toMapsEmbedUrl } from "@/lib/map";
+import { computeAvailability } from "@/lib/services/availability";
 import LandingNav from "@/components/landing/nav";
 import Reveal from "@/components/landing/reveal";
 import BookingButton from "@/components/landing/booking-button";
 import BookingDialog from "@/components/landing/booking-dialog";
 import FloatingBookingButton from "@/components/landing/floating-booking-button";
+import FloatingWhatsAppButton from "@/components/landing/floating-whatsapp-button";
 import { VisitTracker } from "@/components/landing/visit-tracker";
 
 export const dynamic = "force-dynamic";
 
+function getSiteUrl(): string {
+  const env =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ??
+    process.env.VERCEL_URL;
+  if (env) {
+    return env.startsWith("http") ? env.replace(/\/+$/, "") : `https://${env}`;
+  }
+  return "http://localhost:3000";
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await prisma.businessSettings.findFirst();
+
+  const siteUrl = getSiteUrl();
+  const title = settings?.businessName ?? "BarberService";
+  const description =
+    settings?.slogan ??
+    settings?.tagline ??
+    settings?.description ??
+    "Cortes de cabello, barba y degradados de precisión. Reserva tu cita online en minutos con los mejores barberos.";
+  const image = settings?.heroImageUrl ?? "/image/000000000d6081f68d1ea23de4944a97.png";
+
   return {
-    title: settings?.businessName ?? "BarberService",
-    description: settings?.tagline ?? "Cortes de cabello, barba y degradados de precisión. Reserva tu cita online en minutos con los mejores barberos.",
+    title,
+    description,
+    keywords: [...marqueeWords, "barbería", settings?.subname ?? title].join(", "),
+    alternates: { canonical: "/" },
+    openGraph: {
+      type: "website",
+      locale: "es_VE",
+      url: siteUrl,
+      siteName: title,
+      title,
+      description,
+      images: [{ url: new URL(image, siteUrl).toString(), width: 800, height: 1000, alt: title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [new URL(image, siteUrl).toString()],
+    },
   };
 }
 
 const marqueeWords = ["Cortes de cabello", "Barba", "Degradados", "Peinados", "Mascarillas"];
 
 const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 const grain =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
@@ -51,15 +93,51 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
   );
 }
 
+const STATUS_META = {
+  "available-now": { label: "Disponible ahora", dot: "bg-emerald-400", text: "text-emerald-300" },
+  "available-soon": { label: "Libre en 2h", dot: "bg-amber-400", text: "text-amber-300" },
+  busy: { label: "Ocupado", dot: "bg-zinc-500", text: "text-zinc-400" },
+  closed: { label: "Cerrado", dot: "bg-zinc-700", text: "text-zinc-500" },
+} as const;
+
+function formatZoneTime(iso: string, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat("es-VE", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone }).format(
+      new Date(iso),
+    );
+  } catch {
+    return "";
+  }
+}
+
 export default async function Home() {
   const settings = await prisma.businessSettings.findFirst();
   const businessId = settings?.id ?? "settings";
-  const [services, barbers, businessHours, testimonials] = await Promise.all([
+  const now = new Date().getTime();
+  const windowEnd = now + 2 * 60 * 60 * 1000;
+  const [services, barbers, businessHours, testimonials, appointments, completedAppointments] = await Promise.all([
     prisma.service.findMany({ where: { active: true }, orderBy: { priceCents: "asc" } }),
     prisma.barber.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     prisma.businessHour.findMany({ where: { businessId }, orderBy: { dayOfWeek: "asc" } }),
     prisma.testimonial.findMany({ where: { businessId }, orderBy: { order: "asc" } }),
+    prisma.appointment.findMany({
+      where: { status: { not: "CANCELLED" }, startsAt: { lt: new Date(windowEnd) }, endsAt: { gt: new Date(now) } },
+      select: { barberId: true, startsAt: true, endsAt: true },
+    }),
+    prisma.appointment.count({ where: { status: "COMPLETED" } }),
   ]);
+
+  const availability = computeAvailability({
+    barbers,
+    now,
+    windowStart: now,
+    windowEnd,
+    timezone: settings?.timezone ?? "America/Caracas",
+    appointmentSlot: settings?.appointmentSlot ?? 30,
+    businessHours,
+    appointments,
+  });
+  const availabilityById = new Map(availability.map((a) => [a.id, a]));
 
   const businessName = settings?.businessName ?? "BarberService";
   const currency = settings?.currency ?? "USD";
@@ -96,8 +174,62 @@ export default async function Home() {
 
   const mapsEmbedUrl = await toMapsEmbedUrl(settings?.mapsUrl, settings?.address);
 
+  const siteUrl = getSiteUrl();
+  const maxPrice = services.length ? Math.max(...services.map((s) => s.priceCents)) : 0;
+  const schemaHours = businessHours
+    .filter((h) => h.openTime && h.closeTime)
+    .map((h) => ({
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: DAY_NAMES[h.dayOfWeek],
+      opens: h.openTime as string,
+      closes: h.closeTime as string,
+    }));
+  const ratingCount = testimonials.filter((t) => t.rating > 0).length;
+  const ratingAvg = ratingCount
+    ? Math.round((testimonials.reduce((a, t) => a + t.rating, 0) / ratingCount) * 10) / 10
+    : null;
+  const completedCount = completedAppointments;
+  const proofStat =
+    completedCount > 0
+      ? { value: completedCount, label: "Citas realizadas" }
+      : ratingCount > 0
+        ? { value: ratingCount, label: "Clientes" }
+        : { value: "100%", label: "Clientes satisfechos" };
+  const jsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "HairSalon",
+    "@id": `${siteUrl}/#business`,
+    name: businessName,
+    url: siteUrl,
+    ...(settings?.subname ? { alternateName: settings.subname } : {}),
+    description: settings?.slogan ?? settings?.tagline ?? settings?.description ?? undefined,
+    ...(settings?.phone ? { telephone: settings.phone } : {}),
+    ...(settings?.email ? { email: settings.email } : {}),
+    image: new URL(heroImage, siteUrl).toString(),
+    ...(settings?.address ? { address: { "@type": "PostalAddress", streetAddress: settings.address } } : {}),
+    ...(settings?.mapsUrl ? { hasMap: settings.mapsUrl } : {}),
+    ...(schemaHours.length ? { openingHoursSpecification: schemaHours } : {}),
+    ...(services.length
+      ? { priceRange: `${money(startingPrice, currency)} – ${money(maxPrice, currency)}` }
+      : {}),
+    ...(ratingCount
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: (testimonials.reduce((a, t) => a + t.rating, 0) / ratingCount).toFixed(1),
+            bestRating: 5,
+            worstRating: 1,
+            ratingCount,
+            reviewCount: ratingCount,
+          },
+        }
+      : {}),
+    ...(socialLinks.length ? { sameAs: socialLinks.map((s) => s.href) } : {}),
+  };
+
   return (
     <main data-theme="dark" style={accentStyle} className="min-h-screen w-full min-w-0 overflow-x-clip bg-zinc-950 text-white">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <LandingNav businessName={businessName} logoUrl={settings?.logoUrl} />
 
       <section className="relative overflow-hidden">
@@ -160,7 +292,10 @@ export default async function Home() {
                 </div>
                 <div className="mt-7 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-white/10 pt-5 text-[13px] text-zinc-500">
                   <span className="flex items-center gap-2">
-                    <Star size={14} className="fill-gold text-gold" /> 5.0 · Clientes satisfechos
+                    <Star size={14} className="fill-gold text-gold" />{" "}
+                    {ratingAvg
+                      ? `${ratingAvg.toFixed(1)} · ${ratingCount} ${ratingCount === 1 ? "cliente" : "clientes"}`
+                      : "Clientes satisfechos"}
                   </span>
                   <span className="flex items-center gap-2">
                     <Calendar size={14} /> Reserva en 2 minutos
@@ -371,6 +506,20 @@ export default async function Home() {
                       {barber.phone}
                     </div>
                   )}
+                  {(() => {
+                    const status = availabilityById.get(barber.id);
+                    if (!status) return null;
+                    const cfg = STATUS_META[status.status];
+                    return (
+                      <span className={`mt-1.5 inline-flex items-center gap-1.5 text-[10px] font-medium ${cfg.text}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+                        {cfg.label}
+                        {status.status === "busy" && status.busyUntil && (
+                          <span className="text-zinc-500">hasta {formatZoneTime(status.busyUntil, settings?.timezone ?? "America/Caracas")}</span>
+                        )}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
             </Reveal>
@@ -423,7 +572,7 @@ export default async function Home() {
             {[
               { value: services.length, label: "Servicios" },
               { value: barbers.length, label: "Barberos" },
-              { value: "100%", label: "Clientes satisfechos" },
+              proofStat,
             ].map((stat) => (
               <div key={stat.label}>
                 <div className="font-display text-3xl font-semibold text-gold">{stat.value}</div>
@@ -719,6 +868,10 @@ export default async function Home() {
         <Calendar size={15} /> Reservar cita
         <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
       </FloatingBookingButton>
+
+      {settings?.whatsapp && (
+        <FloatingWhatsAppButton whatsapp={settings.whatsapp} message="Hola, quiero reservar una cita 💈" />
+      )}
     </main>
   );
 }

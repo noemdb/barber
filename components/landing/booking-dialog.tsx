@@ -35,6 +35,12 @@ const localToday = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+const localDateStr = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const localTimeStr = (d: Date) =>
+  `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
 function Stepper({ current }: { current: number }) {
   const labels = ["Elige cómo", "Servicio", "Confirma"];
   return (
@@ -83,6 +89,7 @@ export default function BookingDialog({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<CreatedAppointment | null>(null);
+  const [quick, setQuick] = useState<{ barberId: string; slots: string[] }>({ barberId: "", slots: [] });
 
   useEffect(() => {
     const openDialog = () => {
@@ -113,6 +120,36 @@ export default function BookingDialog({
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!barberId) return;
+    let cancelled = false;
+    const service = services.find((s) => s.id === serviceId);
+    const serviceDurationMin = service?.durationMin;
+    const from = new Date();
+    const to = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const qs = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+    if (serviceDurationMin) qs.set("durationMin", String(serviceDurationMin));
+    fetch(`/api/availability?${qs.toString()}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return;
+        const barbers = (json.data?.barbers ?? []) as Array<{ id?: string; freeSlots?: string[] }>;
+        const barber = barbers.find((b) => b?.id === barberId);
+        const today = localToday();
+        const slots = (barber?.freeSlots ?? []).filter((iso) => localDateStr(new Date(iso)) === today);
+        setQuick({ barberId, slots: slots.slice(0, 8) });
+      })
+      .catch(() => {
+        if (!cancelled) setQuick({ barberId, slots: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [barberId, serviceId, services]);
+
+  const quickReady = quick.barberId === barberId && !!barberId;
+  const quickSlots = quickReady ? quick.slots : [];
 
   const stepIndex = step === "choice" ? 1 : step === "services" ? 2 : 3;
 
@@ -356,6 +393,41 @@ export default function BookingDialog({
                   );
                 })}
               </div>
+
+              {barberId && (
+                <div className="mt-4">
+                  <span className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">Próximos huecos (hoy)</span>
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {!quickReady ? (
+                      <span className="text-[12px] text-zinc-500">Buscando disponibilidad…</span>
+                    ) : quickSlots.length > 0 ? (
+                      quickSlots.map((iso) => {
+                        const d = new Date(iso);
+                        const selected = time === localTimeStr(d);
+                        return (
+                          <button
+                            key={iso}
+                            type="button"
+                            onClick={() => {
+                              setDate(localDateStr(d));
+                              setTime(localTimeStr(d));
+                            }}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                              selected
+                                ? "border-gold bg-gold/15 text-gold"
+                                : "border-white/10 text-zinc-300 hover:border-gold/50 hover:text-gold"
+                            }`}
+                          >
+                            {localTimeStr(d)}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <span className="text-[12px] text-zinc-500">Sin huecos libres en las próximas 2 horas.</span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <label className="block">

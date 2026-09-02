@@ -64,6 +64,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     await assertNotLastOwner(existing.role, body.role ?? existing.role, body.active === false);
 
+    // Consistencia de rol: solo un usuario con rol BARBER puede estar vinculado a un barbero.
+    const effectiveRole = body.role ?? existing.role;
+    if (body.barberId && effectiveRole !== "BARBER") {
+      throw new DomainError(ErrorCodes.VALIDATION_ERROR, "Solo los usuarios con rol Barbero pueden vincularse a un barbero", 409);
+    }
+
     const data: Prisma.UserUpdateInput = {};
     if (body.name !== undefined) data.name = body.name;
     if (body.email !== undefined) data.email = body.email.toLowerCase().trim();
@@ -74,7 +80,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const user = await prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({ where: { id }, data, select: userSelect });
 
-      if (body.barberId === null && existing.barber) {
+      // Si el rol dejó de ser BARBER se desvincula el barbero (evita vínculo colgado).
+      if (body.role && body.role !== "BARBER" && existing.barber) {
+        await tx.barber.update({ where: { id: existing.barber.id }, data: { userId: null } });
+      } else if (body.barberId === null && existing.barber) {
         await tx.barber.update({ where: { id: existing.barber.id }, data: { userId: null } });
       } else if (typeof body.barberId === "string") {
         if (existing.barber && existing.barber.id !== body.barberId) {

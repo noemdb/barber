@@ -57,7 +57,63 @@ export async function GET(request: Request) {
       prisma.user.count({ where }),
     ]);
 
-    return { data: { users, total, page, limit } };
+    // Perfil de cliente vinculado a cada usuario CLIENT (por email, igual que
+    // getCurrentClient). Client.email no es único, así que se toma el primero
+    // creado con ese correo, para que la vista coincida con el resolver real.
+    const clientEmails = users.filter((u) => u.role === "CLIENT" && u.email).map((u) => u.email);
+    const clientByEmail = new Map<string, { id: string; name: string; email: string | null; phone: string | null; notes: string | null; active: boolean }>();
+    if (clientEmails.length > 0) {
+      const found = await prisma.client.findMany({
+        where: { email: { in: clientEmails } },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, name: true, email: true, phone: true, notes: true, active: true },
+      });
+      for (const c of found) {
+        if (c.email && !clientByEmail.has(c.email)) clientByEmail.set(c.email, c);
+      }
+    }
+
+    // Estadísticas del perfil: nº de citas, total gastado y última visita.
+    const clientIds = [...new Set([...clientByEmail.values()].map((c) => c.id))];
+    const statsByClientId = new Map<string, { appointmentCount: number; totalSpentCents: number; lastAppointmentAt: string | null }>();
+    if (clientIds.length > 0) {
+      const [grouped, lastAppts] = await Promise.all([
+        prisma.appointment.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: clientIds } },
+          _count: { _all: true },
+          _sum: { priceCents: true },
+        }),
+        prisma.appointment.findMany({
+          where: { clientId: { in: clientIds } },
+          orderBy: { startsAt: "desc" },
+          select: { clientId: true, startsAt: true },
+        }),
+      ]);
+      const lastByClient = new Map<string, string>();
+      for (const a of lastAppts) {
+        if (!lastByClient.has(a.clientId)) lastByClient.set(a.clientId, a.startsAt.toISOString());
+      }
+      for (const g of grouped) {
+        statsByClientId.set(g.clientId, {
+          appointmentCount: g._count._all,
+          totalSpentCents: g._sum.priceCents ?? 0,
+          lastAppointmentAt: lastByClient.get(g.clientId) ?? null,
+        });
+      }
+    }
+
+    const enriched = users.map((u) => {
+      const client = u.role === "CLIENT" ? (clientByEmail.get(u.email) ?? null) : null;
+      return {
+        ...u,
+        client: client
+          ? { ...client, ...(statsByClientId.get(client.id) ?? { appointmentCount: 0, totalSpentCents: 0, lastAppointmentAt: null }) }
+          : null,
+      };
+    });
+
+    return { data: { users: enriched, total, page, limit } };
   });
 }
 
@@ -72,6 +128,11 @@ export async function POST(request: Request) {
 
     const body = parse.data;
     const email = body.email.toLowerCase().trim();
+
+    // Consistencia de rol: solo un usuario con rol BARBER puede estar vinculado a un barbero.
+    if (body.barberId && body.role !== "BARBER") {
+      throw new DomainError(ErrorCodes.VALIDATION_ERROR, "Solo los usuarios con rol Barbero pueden vincularse a un barbero", 409);
+    }
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) throw new DomainError(ErrorCodes.VALIDATION_ERROR, "Ya existe un usuario con ese correo", 409);

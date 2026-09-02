@@ -16,8 +16,6 @@ export type BusinessHourLike = { dayOfWeek: number; openTime: string | null; clo
 export type AppointmentLike = { barberId: string; startsAt: Date; endsAt: Date };
 export type BarberLike = { id: string; name?: string; specialty?: string | null; avatar?: string | null };
 
-const DAY_OFFSET_MS = 24 * 60 * 60 * 1000;
-
 function weekdayOf(dateStr: string): number {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
@@ -50,7 +48,7 @@ export function computeAvailability(opts: {
   const windowStart = new Date(Math.min(ws, we));
   const windowEnd = new Date(Math.max(ws, we));
 
-  const openIntervals: Array<{ start: Date; end: Date; barberId: string }> = [];
+  const openIntervals: Array<{ start: Date; end: Date }> = [];
   let localDay = zonedNowDate(windowStart.getTime(), timezone);
   for (let i = 0; i < 8; i++) {
     const dayStartUtc = zonedTimeToUtc(`${localDay}T00:00`, timezone);
@@ -60,7 +58,7 @@ export function computeAvailability(opts: {
     for (const h of hours) {
       const start = zonedTimeToUtc(`${localDay}T${h.openTime}:00`, timezone);
       const end = zonedTimeToUtc(`${localDay}T${h.closeTime}:00`, timezone);
-      if (end > windowStart && start < windowEnd) openIntervals.push({ start, end, barberId: "shared" });
+      if (end > windowStart && start < windowEnd) openIntervals.push({ start, end });
     }
     localDay = addZonedDays(localDay, 1);
   }
@@ -72,9 +70,8 @@ export function computeAvailability(opts: {
     const freeSlots: string[] = [];
 
     for (const interval of openIntervals) {
-      const slotStartMs = interval.start.getTime();
       const slotStep = appointmentSlot * 60_000;
-      for (let t = slotStartMs; t + duration * 60_000 <= interval.end.getTime(); t += slotStep) {
+      for (let t = interval.start.getTime(); t + duration * 60_000 <= interval.end.getTime(); t += slotStep) {
         const slotStart = new Date(t);
         if (slotStart < windowStart || slotStart >= windowEnd) continue;
         const slotEnd = new Date(t + duration * 60_000);
@@ -104,6 +101,3 @@ export function computeAvailability(opts: {
     };
   });
 }
-
-export const NEXT_TWO_HOURS_MS = 2 * 60 * 60 * 1000;
-export const _internal = { DAY_OFFSET_MS };

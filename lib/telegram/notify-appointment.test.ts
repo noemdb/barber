@@ -2,17 +2,28 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getTelegramChatId } from "./chat-id";
 import { sendTelegramMessage } from "./notifier";
 import { notifyAppointmentEvent } from "./notify-appointment";
+import { getTelegramBusiness } from "./business";
 import type { AppointmentEvent } from "./schemas";
 
 vi.mock("./chat-id", () => ({ getTelegramChatId: vi.fn() }));
 vi.mock("./notifier", () => ({ sendTelegramMessage: vi.fn() }));
+vi.mock("./business", () => ({ getTelegramBusiness: vi.fn() }));
 vi.mock("@/lib/time", () => ({ getBusinessTimezone: vi.fn(async () => "America/Caracas") }));
+
+vi.mocked(getTelegramBusiness).mockResolvedValue({
+  address: "Av. Bolívar, Local 5",
+  mapsUrl: "https://maps.google.com/?q=Barber+Shop+Central",
+  currency: "USD",
+});
 
 const event: AppointmentEvent = {
   appointmentId: "clxabc123",
   clientName: "María",
   barberName: "Luis",
+  barberSpecialty: null,
   serviceName: "Corte",
+  serviceDurationMin: 30,
+  servicePriceCents: 1000,
   startsAt: new Date("2026-09-01T15:00:00.000Z"),
 };
 
