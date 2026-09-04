@@ -17,6 +17,7 @@ export interface CreatePaymentInput {
   method?: PaymentMethod;
   status?: PaymentStatus;
   paidAt?: Date | null;
+  notes?: string | null;
   completeAppointment?: boolean;
 }
 
@@ -67,6 +68,7 @@ export async function createPayment<T>(
     method = "CASH",
     status = "PAID",
     paidAt,
+    notes,
     completeAppointment = true,
   } = input;
 
@@ -85,6 +87,7 @@ export async function createPayment<T>(
     method,
     status,
     paidAt: finalPaidAt,
+    notes,
   });
 
   if (completeAppointment) {

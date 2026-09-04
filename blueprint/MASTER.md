@@ -23,7 +23,7 @@
 | Spec | Categoría | Estado | Ubicación | Resumen |
 | --- | --- | --- | --- | --- |
 | **`specv1.0.md`** | Contrato operativo (guía) | Vigente | `blueprint/` | Metodología y reglas de ingeniería (46 secciones) para todo el proyecto. No implementa una feature; es el contrato del agente. |
-| **Roles por interfaz** | Feature | ✅ Implementado | `blueprint/spec-roles-v1.md` | `lib/roles.ts` (fuente de verdad rol→ruta/home), portales `/barber` y `/reservations`, `requireRoleOrRedirect`. Verificado en sep 2026 (CHANGELOG Cambio 1). |
+| **Roles por interfaz** | Feature | ✅ Implementado | `blueprint/spec-roles-v1.md` | `lib/roles.ts` (fuente de verdad rol→ruta/home), portales `/barber` y `/reservations`, `requireRoleOrRedirect`. Rutas de consola protegidas (incluye `/users`, `/manuales`). Verificado en sep 2026 (CHANGELOG Cambio 1). |
 | **Modo dark/light** | Feature | ✅ Implementado | `blueprint/spec-dark-mode.md` | Sistema `data-theme` + CSS vars, `ThemeProvider`/`useTheme`, todo el dashboard adaptado. |
 | **Expansión de Settings** | Feature | ✅ Implementado | `blueprint/spec-settings-expansion.md` | `GET/PATCH /api/settings`, campos de marca/contacto en `BusinessSettings`, `BusinessHour`, `Testimonial`, panel editable en `/settings`. |
 | **Pagos v1** | Feature | ✅ Implementado | `blueprint/spec-payments-v1.md` | `lib/services/payment-service.ts`, `paymentCreateSchema`, campo `Payment.notes`, `POST /api/payments` con reglas R1–R9 y compatibilidad heredada (`id`↔`appointmentId`). |
@@ -31,9 +31,11 @@
 | **Visitantes (analítica landing)** | Feature | ✅ Implementado | `app/(dashboard)/visitantes` + `lib/visitors.ts` | Ver nota en §4.1 — un spec ajeno fue archivado; la fuente de verdad es el código. |
 | **Notificaciones Telegram** | Feature | ✅ Implementado | `blueprint/telegramNotifications/SPEC-telegram-notifications-v4.md` | `lib/telegram/*`, 3 eventos al chat único de staff. **v4 es el único spec canónico** (ver §3). |
 | **Mejoras portal del cliente** | Feature (plan) | 📝 Plan propuesto, no implementado | `blueprint/updating/spec-client-portal-improvements.md` | Mejoras al **portal real del cliente** (`/reservations`). El legado que apuntaba a `/users` está archivado (ver §4.2). |
+| **Telegram v1–v3 (obsoletas)** | Feature | 📦 Archivadas | `blueprint/telegramNotifications/archive/` | Versionamientos previos del spec de Telegram; la canónica es **v4** (ver §3). |
+| **Specs ajenos / legados** | Documento | 📦 Archivados | `blueprint/archive/` | `SPEC_Visitantes_dashboard.md` (Hotel Río Yurubí, ajeno) y `spec-user-dashboard-improvements-legacy.md` (apuntaba a `/users`). Ver §4. |
 | **CHANGELOG** | Registro | Vigente | `blueprint/CHANGELOG.md` | Historial trazable de cambios (reiniciado a la iteración actual; Cambio 1 = roles). |
-| **`command.md`** | Nota suelta | Marginal | `blueprint/command.md` | Contiene `npx neonctl@latest init` (comando suelto, no es spec). |
-| **`result/desbordeScrollHorizontal.jpg`** | Adjunto | Marginal | `blueprint/result/` | Screenshot (bug de overflow horizontal). No es spec. |
+| **`command.md`** | Nota suelta | Marginal | `blueprint/misc/command.md` | Contiene `npx neonctl@latest init` (comando suelto, no es spec). |
+| **`result/desbordeScrollHorizontal.jpg`** | Adjunto | Marginal | `blueprint/misc/result/` | Screenshot (bug de overflow horizontal). No es spec. |
 
 ---
 

@@ -37,7 +37,7 @@ de **las mejoras nuevas** que sí aportan valor.
 | --- | --- |
 | Badges de estado de reserva (Confirmada/Pendiente/Completada/Cancelada/No asistió) | `statusClass`/`statusLabel` en `app/reservations/page.tsx` |
 | Calendario interactivo para nueva reserva | `components/client/weekly-availability-calendar.tsx` + `CreateAppointmentDialog` |
-| Modal de nueva reserva | `components/client/create-appointment-dialog.tsx` (se abre con el evento `barber:open-booking` → `app/api/booking`) |
+| Modal de nueva reserva | `components/client/create-appointment-dialog.tsx` (se abre con el evento `barber:open-booking` y crea la cita con `POST /api/appointments`) |
 | Modo claro/oscuro persistente | `ThemeProvider` en `app/reservations/layout.tsx` |
 | KPIs (reservas activas, historial, completadas, gasto total) | Cards `Stat` en `app/reservations/page.tsx` |
 

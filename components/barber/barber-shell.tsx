@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarDays, LayoutDashboard, LogOut, Scissors, ShieldCheck, Users } from "lucide-react";
+import { BookOpen, CalendarDays, LayoutDashboard, LogOut, Scissors, ShieldCheck, Users } from "lucide-react";
 import type { Session } from "@/types";
 
 const nav = [
@@ -11,6 +11,7 @@ const nav = [
   { href: "/barber/appointments", label: "Citas", icon: CalendarDays },
   { href: "/barber/clients", label: "Clientes", icon: Users },
   { href: "/barber/binnacle", label: "Bitácora", icon: ShieldCheck },
+  { href: "/barber/manual", label: "Manual", icon: BookOpen },
 ];
 
 export function BarberShell({

@@ -62,11 +62,11 @@ La lista **Historial** contiene tus reservas pasadas, ordenadas de más reciente
 
 ## 4. Crear una nueva reserva
 
-En la parte superior del portal, junto a tu saludo, hay dos botones: **Crear nueva reserva** y **Ver disponibilidad**.
+En la parte superior del portal, junto a tu saludo, hay dos botones: **Registrar cita** y **Ver indisponibilidad semanal**.
 
 ### 4.1. Crear una reserva
 
-1. Pulsa **Crear nueva reserva**.
+1. Pulsa **Registrar cita**.
 2. Selecciona el **servicio** que quieres.
 3. Elige el **barbero** y la **fecha y hora** que prefieras.
 4. Revisa el **importe** y confirma. El sistema valida que el horario sea posible y que no choque con la agenda del barbero.
@@ -74,9 +74,9 @@ En la parte superior del portal, junto a tu saludo, hay dos botones: **Crear nue
 
 > Si no tienes aún ningún perfil de cliente, el portal te indica que aún no tienes reservas. Cuando reserves, aparecerán aquí.
 
-### 4.2. Ver disponibilidad
+### 4.2. Ver indisponibilidad semanal
 
-El botón **Ver disponibilidad** abre un **calendario semanal** que muestra los horarios disponibles del negocio, con los servicios, barberos y citas ya ocupadas. Te ayuda a elegir un turno que te encaje antes de reservar.
+El botón **Ver indisponibilidad semanal** abre un **calendario semanal** que muestra los turnos ya ocupados de cada barbero (los huecos en gris son los no disponibles); los turnos en verde siguen **libres**. Te ayuda a elegir un turno que te encaje antes de reservar.
 
 ### Reglas que el sistema aplica
 
@@ -87,8 +87,8 @@ El botón **Ver disponibilidad** abre un **calendario semanal** que muestra los 
 ### Caso de uso — Agendar un corte de cabello
 
 1. Entra a **Mis reservas**.
-2. Pulsa **Ver disponibilidad** para ver qué turnos hay esta semana.
-3. Pulsa **Crear nueva reserva**.
+2. Pulsa **Ver indisponibilidad semanal** para ver qué turnos hay libres esta semana.
+3. Pulsa **Registrar cita**.
 4. Elige «Corte de cabello», selecciona un día y una hora libres.
 5. Confirma. La reserva aparece en **Próximas reservas**.
 
@@ -114,7 +114,7 @@ La **Bitácora** del portal muestra los eventos vinculados a **tu cuenta**: por 
 ## 6. Consejos de uso
 
 - Revisa **Próximas reservas** con frecuencia para no perderte ninguna cita.
-- Usa **Ver disponibilidad** antes de reservar para elegir el turno ideal.
+- Usa **Ver indisponibilidad semanal** antes de reservar para elegir el turno ideal.
 - Si necesitas cambiar la hora, cancela y vuelve a reservar, o contacta al negocio.
 - Revisa el **estado** (pendiente/confirmada) para saber si tu cita está confirmada.
 
@@ -128,7 +128,7 @@ Significa que aún no has reservado o que tu perfil aún no tiene citas asociada
 
 ### No encuentro un horario que me guste
 
-Usa **Ver disponibilidad** para ver toda la semana de una vez. Los turnos ocupados no están disponibles.
+Usa **Ver indisponibilidad semanal** para ver toda la semana de una vez. Los turnos ocupados no están disponibles.
 
 ### No sé si mi cita está confirmada
 

@@ -53,8 +53,8 @@ El **Panel** es la pantalla de inicio. Resume en un solo vistazo la operación d
 
 ### 3.1. Indicadores (tarjetas de la parte superior)
 
-- **Ingresos de hoy:** suma de los cobros registrados hoy.
-- **Citas de hoy:** número de citas programadas para hoy, con cuántas ya están completadas.
+- **Ingresos del periodo:** suma de los cobros registrados en el periodo seleccionado. El periodo por defecto es **Hoy**.
+- **Citas del periodo:** número de citas del periodo seleccionado (sin contar canceladas ni no asistió), con cuántas ya están completadas.
 - **Clientes activos:** clientes con perfil activo en el sistema.
 - **Servicios activos:** servicios disponibles en el catálogo.
 
@@ -67,13 +67,13 @@ Debajo de los indicadores verás:
 
 ### 3.3. Gráficos de análisis
 
-Al final del panel encontrarás tres análisis y dos módulos de ingresos:
+Al final del panel encontrarás los análisis del **periodo seleccionado**. Se ajustan con el selector de **Periodo** (Hoy, Semana, Mes, 3 meses, 6 meses, Todos) y los filtros de barbero/servicio/cliente:
 
-- **Citas por barbero** (esta semana).
-- **Estado de citas** (distribución semanal).
-- **Ingresos semanales** (comparativo entre esta semana y la anterior).
-- **Ingresos recientes** (últimos 7 días).
-- **Servicios más vendidos** (ranking por citas completadas).
+- **Desempeño por barbero:** citas, % de ocupación, ticket promedio e ingresos de cada barbero.
+- **Comparativo de ingresos:** ingresos del periodo actual frente al anterior (se oculta en el rango **Todos**).
+- **Estado de citas:** distribución por estado.
+- **Servicios más facturados:** ranking por ingreso del periodo.
+- **Horas pico:** mapa de calor por día de la semana y hora de inicio.
 
 > Los gráficos son interactivos: pasa el cursor para ver el detalle de cada barra o punto.
 
@@ -82,7 +82,7 @@ Al final del panel encontrarás tres análisis y dos módulos de ingresos:
 1. Entra a **Panel**.
 2. Mira los 4 indicadores para confirmar cuánto se ha facturado y cuántas citas hay.
 3. Revisa la tabla **Citas de hoy** para detectar citas pendientes de confirmar o posibles ausencias.
-4. Usa **Ingresos recientes** para ver la tendencia de la semana.
+4. Ajusta el **periodo** y los **filtros** (barbero/servicio/cliente) para ver el análisis que necesites.
 
 ---
 
@@ -188,7 +188,7 @@ El módulo de **Servicios** define el catálogo y los precios.
 
 ## 8. Pagos
 
-Registrar un pago es una acción administrativa que se realiza desde el detalle de una cita (o desde la API correspondiente). Solo un `ADMIN` u `OWNER` puede registrar pagos; un barbero no está autorizado.
+Registrar un pago es una acción administrativa **solo disponible a través de la API de pagos** (endpoint protegido para `ADMIN` y `OWNER`). La interfaz aún no expone un formulario de cobro: desde el detalle de una cita puedes **consultar** el estado de pago, pero no registrarlo en pantalla.
 
 ### 8.1. Formas de pago
 
@@ -207,7 +207,7 @@ Registrar un pago es una acción administrativa que se realiza desde el detalle 
 
 ### 8.3. Notas del pago
 
-Puedes añadir una **nota** al pago para registrar referencias, números de tarjeta (últimos cuatro dígitos), etc. (máximo 500 caracteres).
+Puedes incluir una **nota** al registrar el pago (vía API) para guardar referencias, últimos cuatro dígitos de tarjeta, etc. El campo acepta hasta **500 caracteres** y se guarda en el registro del pago.
 
 ### Reglas que el sistema aplica
 
@@ -236,7 +236,7 @@ Puedes añadir una **nota** al pago para registrar referencias, números de tarj
 
 El módulo de **Configuración** es el panel de administración del negocio: identidad, marca, contacto, operación, horarios y testimonios. Todo lo que configures aquí se refleja en la web pública (landing) y en la interfaz interna.
 
-> Solo un `ADMIN` u `OWNER` puede guardar cambios aquí. Los cambios se aplican al instante y se registran en la bitácora.
+> Solo un `ADMIN` u `OWNER` puede guardar cambios aquí. Los cambios se aplican al instante. A diferencia de citas y pagos, la **configuración no genera registros** en la bitácora.
 
 ### 9.1. Identidad
 
@@ -333,7 +333,7 @@ La **Bitácora** es el registro de auditoría del sistema: guarda quién hizo qu
 ### 11.1. Qué se registra
 
 - Eventos de autenticación: inicio de sesión exitoso/fallido, cierre de sesión, acceso denegado.
-- Acciones de negocio: creación, edición, cancelación y finalización de citas; creación de clientes y servicios; pagos; cambios de configuración.
+- Acciones de negocio: creación, edición, cancelación y finalización de citas; creación de clientes y servicios; pagos.
 - Acciones de administración: creación y edición de usuarios, cambios de rol, creación de barberos.
 - Eventos de seguridad, errores de validación y errores del sistema.
 

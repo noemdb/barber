@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarRange, Scissors, User, UsersRound, X } from "lucide-react";
+import { CalendarRange, Loader2, Scissors, User, UsersRound, X } from "lucide-react";
 import { FilterDropdown } from "./filter-dropdown";
 import { MultiFilterDropdown } from "./multi-filter-dropdown";
+import { DEFAULT_RANGE, RANGE_ALL, RANGE_VALUES } from "@/lib/ranges";
 
 type Option = { id: string; name: string };
 
@@ -16,18 +17,6 @@ const PERIOD_OPTIONS: Option[] = [
   { id: "3m", name: "3 meses" },
   { id: "6m", name: "6 meses" },
 ];
-
-const PERIOD_NAME: Record<string, string> = {
-  all: "Todos",
-  today: "Hoy",
-  week: "Semana",
-  month: "Mes",
-  "3m": "3 meses",
-  "6m": "6 meses",
-};
-
-// El rango por defecto no lleva parámetro en la URL.
-const DEFAULT_RANGE = "today";
 
 // Clave de localStorage para recordar el último filtro usado.
 const STORAGE_KEY = "dashboard.filters";
@@ -53,6 +42,7 @@ type Props = {
 
 export function DashboardFilters({ range, barberId, serviceId, clientId, barbers, services, clients, resultCount, resultIncome }: Props) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   function build(next: FilterState): string {
     const merged = {
@@ -83,7 +73,7 @@ export function DashboardFilters({ range, barberId, serviceId, clientId, barbers
     } catch {
       /* localStorage no disponible (SSR/iframe) */
     }
-    router.push(build(next));
+    startTransition(() => router.push(build(next)));
   }
 
   function clearAll() {
@@ -92,11 +82,11 @@ export function DashboardFilters({ range, barberId, serviceId, clientId, barbers
     } catch {
       /* noop */
     }
-    router.push("/dashboard");
+    startTransition(() => router.push("/dashboard"));
   }
 
   // Restaura el último filtro guardado SOLO cuando la URL viene sin parámetros
-  // (la URL explícita del usuario tiene prioridad).
+  // (la URL explícita del usuario es la fuente de verdad y tiene prioridad).
   useEffect(() => {
     if (window.location.search) return;
     try {
@@ -104,12 +94,26 @@ export function DashboardFilters({ range, barberId, serviceId, clientId, barbers
       if (!raw) return;
       const saved = JSON.parse(raw) as FilterState;
       if (!saved || typeof saved !== "object") return;
+
+      // Sólo se restaura un rango válido; los filtros se normalizan a arrays.
+      const savedRange = typeof saved.range === "string" && RANGE_VALUES.includes(saved.range) ? saved.range : undefined;
+      const barberIds = toArr(saved.barberId);
+      const serviceIds = toArr(saved.serviceId);
+      const clientIds = toArr(saved.clientId);
       const next: FilterState = {
-        range: typeof saved.range === "string" ? saved.range : undefined,
-        barberId: toArr(saved.barberId),
-        serviceId: toArr(saved.serviceId),
-        clientId: toArr(saved.clientId),
+        range: savedRange === RANGE_ALL ? RANGE_ALL : savedRange,
+        barberId: barberIds,
+        serviceId: serviceIds,
+        clientId: clientIds,
       };
+      // No se hace replace si no hay nada que restaurar (rango default y sin filtros).
+      const isEmpty =
+        (savedRange === undefined || savedRange === DEFAULT_RANGE) &&
+        barberIds.length === 0 &&
+        serviceIds.length === 0 &&
+        clientIds.length === 0;
+      if (isEmpty) return;
+
       const target = build(next);
       const current = window.location.pathname + window.location.search;
       if (target !== current) router.replace(target);
@@ -122,7 +126,6 @@ export function DashboardFilters({ range, barberId, serviceId, clientId, barbers
   const hasActive = Boolean(barberId.length || serviceId.length || clientId.length || range !== DEFAULT_RANGE);
 
   const chips: { key: string; label: string; onRemove: () => void }[] = [];
-  if (range !== DEFAULT_RANGE) chips.push({ key: "range", label: PERIOD_NAME[range] ?? range, onRemove: () => apply({ range: DEFAULT_RANGE }) });
   barberId.forEach((id) => {
     const name = barbers.find((b) => b.id === id)?.name;
     if (name) chips.push({ key: `barber-${id}`, label: name, onRemove: () => apply({ barberId: barberId.filter((x) => x !== id) }) });
@@ -152,7 +155,8 @@ export function DashboardFilters({ range, barberId, serviceId, clientId, barbers
           ariaLabel="Filtrar por periodo"
           disableReset
         />
-        <span className="whitespace-nowrap text-xs font-medium text-zinc-500 dark:text-zinc-400">
+        <span className="flex items-center gap-2 whitespace-nowrap text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          {isPending && <Loader2 size={13} className="animate-spin text-zinc-400 dark:text-zinc-500" />}
           {resultCount} citas · {resultIncome}
         </span>
 

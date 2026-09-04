@@ -3,12 +3,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarDays, LogOut, Scissors, ShieldCheck } from "lucide-react";
+import { BookOpen, CalendarDays, LogOut, Scissors, ShieldCheck } from "lucide-react";
 import type { Session } from "@/types";
 
 const nav = [
   { href: "/reservations", label: "Mis reservas", icon: CalendarDays },
   { href: "/reservations/binnacle", label: "Bitácora", icon: ShieldCheck },
+  { href: "/reservations/manual", label: "Manual", icon: BookOpen },
 ];
 
 export function ClientShell({

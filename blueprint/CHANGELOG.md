@@ -170,3 +170,108 @@ y sin índice. Se busca que cada feature tenga **un spec canónico** y que el pl
   decisiones; el índice maestro (`MASTER.md`) es el nuevo punto de entrada y referencia de trazabilidad.
 - `spec-user-dashboard-improvements` (ahora `-legacy`) apuntaba a una ruta equivocada; el plan se
   conserva, corregido, en `spec-client-portal-improvements.md` como plan **no implementado todavía**.
+
+---
+
+## 2026-09-04 · Cambio 3 — Dashboard: periodo configurable, filtros ricos y rendimiento
+
+### Objetivo
+
+Enriquecer el panel de administración: hacer configurable el **periodo** (con opción "Todos"),
+permitir **multi-selección** de filtros, añadir paneles de datos más útiles (desempeño por barbero,
+servicios por ingreso, horas pico) y reducir el peso de las consultas (caché + índices).
+
+### Qué se hizo
+
+- **Periodo**: dropdown con Hoy / Semana / Mes / 3 meses / 6 meses / **Todos** (histórico completo,
+  acotado a 365 días vía `MAX_ALL_DAYS`). En "Todos" se oculta la serie "Periodo anterior".
+- **Filtros**: contador de resultados ("N citas · USD X"), chips de filtros activos con ✕ individual,
+  restauración del último filtro en `localStorage`, botón **Limpiar**. Multi-selección de
+  barbero/servicio/cliente (URL `barberId=a,b`; Prisma `in`, SQL de ingresos con `= ANY(...)`).
+- **Paneles nuevos**: Desempeño por barbero (citas, % ocupación, ticket, ingresos), Servicios más
+  facturados (por ingreso del periodo), Horas pico (mapa de calor día×hora).
+- **Consistencia**: "Citas del periodo" excluye canceladas/no-asistidas (alineado con el desempeño).
+- **Accesibilidad del dropdown**: `role="combobox"`, `aria-controls`, `aria-activedescendant`.
+- **Rendimiento**: caché con `unstable_cache` (300s) para catálogos, settings+horarios y buckets de
+  ingresos; índices `Appointment(serviceId)` y `Payment(status, paidAt)` (migración
+  `20260904120000_add_dashboard_indexes`).
+- **Tests**: 87 totales — helpers de horario, render de paneles (`renderToStaticMarkup`) y SQL de
+  `aggregateRevenueBuckets` (mock de Prisma).
+
+### Archivos
+
+| Archivo | Acción |
+| --- | --- |
+| `components/dashboard/dashboard-filters.tsx` | modificado (periodo, chips, localStorage, multi) |
+| `components/dashboard/filter-dropdown.tsx` | modificado (accesibilidad, `disableReset`) |
+| `components/dashboard/multi-filter-dropdown.tsx` | creado (multi-selección) |
+| `components/dashboard/barber-performance.tsx` | creado (desempeño por barbero) |
+| `components/dashboard/peak-hours-chart.tsx` | creado (horas pico) |
+| `app/(dashboard)/dashboard/page.tsx` | modificado (cómputos, paneles, periodo "Todos", tope) |
+| `lib/dashboard.ts` | modificado (helpers de horario, rango "all") |
+| `lib/dashboard-queries.ts` | modificado (caché + `= ANY`) |
+| `lib/dashboard-cache.ts` | creado (catálogos/settings cacheados) |
+| `lib/dashboard.test.ts`, `lib/dashboard-queries.test.ts`, `lib/dashboard-render.test.ts` | tests |
+| `prisma/schema.prisma`, `prisma/migrations/20260904120000_add_dashboard_indexes` | índices |
+
+### Verificación
+
+- `npm run typecheck`: OK (0 errores).
+- `npm run lint`: OK.
+- `npm run test`: OK (87/87).
+- `npm run build`: OK.
+- `prisma migrate deploy`: OK (14 migraciones).
+
+### Regresión conocida
+
+- Caché de catálogos/settings/ingresos refresca cada 300s; la agenda de hoy queda fresca.
+
+---
+
+## 2026-09-04 · Cambio 4 — Auditoría y sincronización blueprint / manuales / código
+
+### Objetivo
+
+Revisar la coherencia entre `blueprint/`, `docs/manual/*.md` y el código real, y corregir las
+divergencias encontradas, dejando el plano y la documentación al día.
+
+### Qué se hizo
+
+- **Manuales al día**: `admin.md` §3.1 (KPIs "del periodo", default Hoy), §3.3 (secciones reales:
+  desempeño, comparativo, estado, servicios por ingreso, horas pico), §8.1/§8.3 (cobro solo vía API;
+  nota de pago ≤500 chars y se guarda), §9 y §11.1 (la configuración **no** se audita). `barber.md`
+  §4.2/§6/§7 (portal de **solo lectura**; el cambio de estado lo gestiona la administración).
+  `client.md` §4/§4.2 (botones reales "Registrar cita" y "Ver indisponibilidad semanal"; el widget
+  muestra turnos ocupados/libres).
+- **`Payment.notes` migrado** (resolvió un contrato roto): schema + migración
+  `20260904130000_add_payment_notes` + el servicio lo persiste. Coherente con zod (≤500) y el spec.
+- **Specs ajustados**: `spec-roles-v1.md` `ROUTE_RULES` ahora incluye `/users` y `/manuales`;
+  `spec-client-portal-improvements.md` corrige la referencia de creación (`app/api/booking` →
+  `POST /api/appointments`).
+- **Blueprint consolidado**: `command.md` y `result/` movidos a `blueprint/misc/`; `MASTER.md` §2 al
+  día (rutas de marginales, resumen de roles, filas de specs archivados).
+
+### Archivos
+
+| Archivo | Acción |
+| --- | --- |
+| `docs/manual/admin.md`, `docs/manual/barber.md`, `docs/manual/client.md` | modificados |
+| `prisma/schema.prisma`, `prisma/migrations/20260904130000_add_payment_notes` | `Payment.notes` |
+| `lib/services/payment-service.ts` | modificado (persiste `notes`) |
+| `blueprint/spec-roles-v1.md`, `blueprint/updating/spec-client-portal-improvements.md` | modificados |
+| `blueprint/MASTER.md` | modificado (mapa al día) |
+| `blueprint/misc/command.md`, `blueprint/misc/result/` | movidos |
+| skill `barber-development` → `references/portals-and-manuals.md` | actualizado |
+
+### Verificación
+
+- `npm run typecheck`: OK (0 errores).
+- `npm run lint`: OK.
+- `npm run test`: OK (87/87).
+- `npm run build`: OK.
+- `prisma migrate deploy` / `migrate status`: "up to date".
+
+### Regresión conocida
+
+- La interfaz **no** expone aún el formulario de **cobro** (el `POST /api/payments` solo se usa por
+  API); el manual y el skill lo aclaran como pendiente.

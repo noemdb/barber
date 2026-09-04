@@ -26,6 +26,8 @@ export function Topbar({ session }: { session: Session }) {
     settings: "Configuración",
     visitantes: "Visitantes",
     manuales: "Manuales",
+    reservations: "Manual del Cliente",
+    barber: "Manual del Barbero",
   };
   const initials = session.name
     .split(" ")
@@ -64,6 +66,7 @@ export function Topbar({ session }: { session: Session }) {
             ⌘ K
           </kbd>
         </div>
+
         <button className="h-9 w-9 rounded-lg border border-zinc-200 dark:border-zinc-700 grid place-items-center text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
           <Bell size={16} />
         </button>

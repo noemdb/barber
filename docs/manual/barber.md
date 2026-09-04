@@ -83,18 +83,17 @@ La sección **Citas** concentra **tu agenda personal**. A diferencia de la conso
 - El **detalle** de cada cita.
 - El **estado** de cada una mediante colores.
 
-### 4.2. Qué acción puedes hacer
+### 4.2. Qué puedes hacer
 
-Como barbero, tu foco es **atender** y **actualizar el estado** de tus citas: confirmar, completar, cancelar o marcar como no asistió. Las decisiones de precios, descuentos y pagos corresponden a la administración.
+El portal del barbero es de **consulta**: puedes ver tu agenda, tus clientes y tu bitácora, pero **no modificar datos**. El cambio de estado de una cita (confirmar, completar, cancelar o marcar no asistió), así como precios, descuentos y pagos, los gestiona la **administración** desde la consola.
 
-> Si no puedes atender a un cliente, **cambia el estado** de la cita o avisa a la administración para que la reprogramen, en lugar de dejar la cita sin atender.
+> Si no puedes atender a un cliente, **avisa a la administración** para que actualice el estado o reprograme la cita, en lugar de dejar la cita sin atender.
 
-### Caso de uso — Completar una cita realizada
+### Caso de uso — Revisar el estado de una cita
 
 1. Entra a **Citas**.
-2. Localiza la cita del cliente que acabas de atender.
-3. Cambia su estado a **Completada**.
-4. Confirma. La cita deja de contar como pendiente y el cliente queda satisfecho.
+2. Localiza la cita del cliente en cuestión.
+3. Revisa su **estado** y consulta a la administración si necesitas que cambie.
 
 ---
 
@@ -118,7 +117,7 @@ La sección **Clientes** muestra **tus clientes**: aquellas personas que han ten
 
 ## 6. Mi bitácora (`/barber/binnacle`)
 
-La **Bitácora** del portal muestra **tu actividad**: los eventos de negocio y de autenticación en los que tú eres el protagonista (por ejemplo, cuando creas, completas o cancelas una cita tuya, o los accesos a tu cuenta).
+La **Bitácora** del portal muestra **tu actividad**: los eventos de negocio y de autenticación vinculados a tu cuenta (por ejemplo, los accesos a tu perfil y las citas asociadas a tu nombre). La bitácora es de solo lectura.
 
 - Filtra por **tipo de evento**, **severidad** y **búsqueda por texto**.
 - Revisa la **fecha**, el **evento** y la **descripción**.
@@ -129,14 +128,14 @@ La **Bitácora** del portal muestra **tu actividad**: los eventos de negocio y d
 
 1. Entra a **Bitácora**.
 2. Filtra por **tipo de evento** = citas.
-3. Localiza la entrada de la cita que creaste o completaste y revisa su detalle.
+3. Localiza la entrada de la cita asociada a tu perfil y revisa su detalle.
 
 ---
 
 ## 7. Consejos de uso diario
 
 - Empieza siempre por el **Panel**: te da el contexto de tu jornada.
-- Mantén el **estado** de tus citas al día (completa en cuanto termines) para que la administración y el cliente vean la información correcta.
+- Revisa el **estado** de tus citas en tu agenda; el cambio de estado lo registra la administración, así que coordina con ella para que la información se vea al día.
 - Usa la **bitácora** como respaldo cuando necesites recordar qué hiciste.
 - Si un horario te queda corto o largo, coméntalo con la administración: los **servicios** (duración) y la **agenda** se gestionan desde la consola admin.
 
