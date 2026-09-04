@@ -113,3 +113,66 @@ export function percentChange(current: number, previous: number): number | null 
   if (previous === 0) return null;
   return Math.round(((current - previous) / previous) * 100);
 }
+
+// ── Utilidades de horario/calendario para el bloque de insights ────────
+
+export type BusinessHourLike = { dayOfWeek: number; openTime: string | null; closeTime: string | null };
+
+/** Día de la semana con lunes=1..domingo=7 para una fecha 'YYYY-MM-DD'. */
+export function weekdayOf(date: string): number {
+  const [y, m, d] = date.split("-").map(Number);
+  const jsDay = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return ((jsDay + 6) % 7) + 1;
+}
+
+/** Días calendario inclusivos entre dos fechas 'YYYY-MM-DD'. */
+export function inclusiveDays(startStr: string, endStr: string): number {
+  const [ys, ms, ds] = startStr.split("-").map(Number);
+  const [ye, me, de] = endStr.split("-").map(Number);
+  return Math.round((Date.UTC(ye, me - 1, de) - Date.UTC(ys, ms - 1, ds)) / 86400000) + 1;
+}
+
+/** Ocurrencias de un día de la semana (1=Lun..7=Dom) dentro del rango [startStr,endStr]. */
+export function weekdayOccurrences(startStr: string, endStr: string, dow: number): number {
+  const total = inclusiveDays(startStr, endStr);
+  const offset = (dow - weekdayOf(startStr) + 7) % 7;
+  if (offset >= total) return 0;
+  return Math.floor((total - 1 - offset) / 7) + 1;
+}
+
+/** Minutos entre openTime/closeTime 'HH:MM'; 0 si falta alguno o el rango invierte. */
+export function minutesForDay(hour: BusinessHourLike): number {
+  if (!hour.openTime || !hour.closeTime) return 0;
+  const [oh, om] = hour.openTime.split(":").map(Number);
+  const [ch, cm] = hour.closeTime.split(":").map(Number);
+  return ch * 60 + cm - (oh * 60 + om);
+}
+
+/** Minutos totales de apertura del negocio dentro del rango [startStr,endStr]. */
+export function totalMinutesOpen(hours: BusinessHourLike[], startStr: string, endStr: string): number {
+  let total = 0;
+  for (const h of hours) {
+    if (h.dayOfWeek < 1 || h.dayOfWeek > 7) continue;
+    const m = minutesForDay(h);
+    if (m <= 0) continue;
+    total += m * weekdayOccurrences(startStr, endStr, h.dayOfWeek);
+  }
+  return total;
+}
+
+/** Horas enteras de apertura (para las columnas de un heatmap), e.g. [8,9,...,17]. */
+export function hourRange(hours: BusinessHourLike[]): number[] {
+  let min = 24;
+  let max = 0;
+  for (const h of hours) {
+    if (!h.openTime || !h.closeTime) continue;
+    const [oh] = h.openTime.split(":").map(Number);
+    const [ch] = h.closeTime.split(":").map(Number);
+    if (oh < min) min = oh;
+    if (ch > max) max = ch;
+  }
+  if (max <= min) return [];
+  const out: number[] = [];
+  for (let h = min; h < max; h++) out.push(h);
+  return out;
+}

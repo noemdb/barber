@@ -11,24 +11,24 @@ export default function Reveal({
   delay?: number;
   className?: string;
 }) {
+  // Inicia visible: sin JS el contenido se muestra igualmente (fallback).
   const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
-    // Fallback sin IntersectionObserver y para usuarios con movimiento reducido:
-    // el contenido se muestra de inmediato, sin animación.
     const prefersReduced =
       typeof window !== "undefined" &&
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    if (prefersReduced || typeof IntersectionObserver === "undefined") {
-      setVisible(true);
-      return;
-    }
+    // Con movimiento reducido o sin IntersectionObserver: se queda visible.
+    if (prefersReduced || typeof IntersectionObserver === "undefined") return;
+
+    const rect = el.getBoundingClientRect();
+    const inView = rect.top < window.innerHeight && rect.bottom > 0;
 
     const io = new IntersectionObserver(
       (entries) => {
@@ -39,6 +39,11 @@ export default function Reveal({
       },
       { threshold: 0.15 },
     );
+
+    // Si está fuera de la vista, ocultarlo para animarlo al hacer scroll.
+    if (!inView) {
+      queueMicrotask(() => setVisible(false));
+    }
     io.observe(el);
     return () => io.disconnect();
   }, []);
