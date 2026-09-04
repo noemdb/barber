@@ -35,6 +35,7 @@ export const bookingSchema = z.object({
     (value) => (typeof value === "string" ? value.trim() : value),
     z.email("Correo electrónico inválido"),
   ),
+  phone: optionalText,
   serviceId: z.string().min(1, "El servicio es obligatorio"),
   barberId: z.string().min(1, "El barbero es obligatorio"),
   startsAt: z.string().refine((value) => !Number.isNaN(new Date(value).getTime()), {

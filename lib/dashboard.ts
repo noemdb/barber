@@ -2,6 +2,9 @@ import { addZonedDays, zonedNowDate, zonedDayStartUtc } from "@/lib/time";
 
 export const DEFAULT_RANGE = "week";
 
+/** Sentinela para "Todos" = todo el histórico (sin límite de fechas). */
+export const RANGE_ALL = "all";
+
 export const RANGE_DAYS: Record<string, number> = {
   today: 1,
   week: 7,
@@ -11,6 +14,7 @@ export const RANGE_DAYS: Record<string, number> = {
 };
 
 export const RANGE_LABEL: Record<string, string> = {
+  [RANGE_ALL]: "Histórico",
   today: "Hoy",
   week: "Últimos 7 días",
   month: "Últimos 30 días",
@@ -18,7 +22,7 @@ export const RANGE_LABEL: Record<string, string> = {
   "6m": "Últimos 6 meses",
 };
 
-export const RANGE_VALUES = Object.keys(RANGE_DAYS);
+export const RANGE_VALUES = Object.keys(RANGE_LABEL);
 
 export type PaymentPoint = { amountCents: number; paidAt: Date | null };
 
@@ -27,6 +31,7 @@ export function resolveRange(raw: string | null | undefined): {
   rangeDays: number;
   rangeLabel: string;
 } {
+  if (raw === RANGE_ALL) return { range: RANGE_ALL, rangeDays: 0, rangeLabel: RANGE_LABEL[RANGE_ALL] };
   const range = raw && RANGE_DAYS[raw] ? raw : DEFAULT_RANGE;
   return { range, rangeDays: RANGE_DAYS[range], rangeLabel: RANGE_LABEL[range] };
 }

@@ -9,12 +9,14 @@ import { toTelegramEvent } from "@/lib/telegram/event";
 import { appointmentCreateSchema, clientAppointmentCreateSchema } from "@/lib/validations";
 import { createAppointment, type AppointmentRepository } from "@/lib/services/appointment-service";
 import { getBusinessTimezone, zonedDayStartUtc, zonedDayEndUtc } from "@/lib/time";
-import type { Prisma } from "@/app/generated/prisma/client";
+import type { Prisma, AppointmentStatus } from "@/app/generated/prisma/client";
 import { logModelMutation } from "@/lib/binnacle";
 
 type CreatedAppointment = Prisma.AppointmentGetPayload<{
   include: { client: true; barber: true; service: true };
 }>;
+
+const STATUSES = new Set(["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED", "NO_SHOW"]);
 
 const appointmentRepo: AppointmentRepository<CreatedAppointment> = {
   getService: (serviceId) => prisma.service.findUnique({ where: { id: serviceId } }),
@@ -38,6 +40,9 @@ export async function GET(request: Request) {
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
     const upcoming = url.searchParams.get("upcoming") === "1";
+    const service = url.searchParams.get("service");
+    const barber = url.searchParams.get("barber");
+    const status = url.searchParams.get("status");
     const timezone = await getBusinessTimezone();
     const where: Prisma.AppointmentWhereInput = {};
 
@@ -53,6 +58,10 @@ export async function GET(request: Request) {
       range.lt = zonedDayEndUtc(to, timezone);
     }
     if (range.gte || range.lt) where.startsAt = range;
+
+    if (service) where.serviceId = service;
+    if (barber) where.barberId = barber;
+    if (status && !upcoming && STATUSES.has(status)) where.status = status as AppointmentStatus;
 
     if (upcoming) {
       where.status = { in: ["PENDING", "CONFIRMED"] };

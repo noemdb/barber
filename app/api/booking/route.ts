@@ -57,9 +57,17 @@ export async function POST(request: Request) {
     });
     if (!barber) throw new DomainError(ErrorCodes.NOT_FOUND, "Barbero no encontrado", 404);
 
+    const phone = body.phone ?? null;
     let client = await prisma.client.findFirst({ where: { email } });
     if (!client) {
-      client = await prisma.client.create({ data: { name: body.name.trim(), email } });
+      client = await prisma.client.create({ data: { name: body.name.trim(), email, phone } });
+    } else {
+      const patch: { name?: string; phone?: string | null } = {};
+      if (body.name.trim() && body.name.trim() !== client.name) patch.name = body.name.trim();
+      if (phone && phone !== client.phone) patch.phone = phone;
+      if (Object.keys(patch).length > 0) {
+        client = await prisma.client.update({ where: { id: client.id }, data: patch });
+      }
     }
 
     const startsAt = new Date(body.startsAt);

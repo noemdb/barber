@@ -18,18 +18,17 @@ import {
 import { prisma } from "@/lib/prisma";
 import { money, initials } from "@/lib/format";
 import { toMapsEmbedUrl } from "@/lib/map";
-import { computeAvailability } from "@/lib/services/availability";
 import LandingNav from "@/components/landing/nav";
 import Reveal from "@/components/landing/reveal";
 import BookingButton from "@/components/landing/booking-button";
 import BookingDialog from "@/components/landing/booking-dialog";
 import ServiceCard from "@/components/landing/service-card";
-import BarberCard from "@/components/landing/barber-card";
+import BarberStatusGrid from "@/components/landing/barber-status-grid";
 import FloatingBookingButton from "@/components/landing/floating-booking-button";
 import FloatingWhatsAppButton from "@/components/landing/floating-whatsapp-button";
 import { VisitTracker } from "@/components/landing/visit-tracker";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 function getSiteUrl(): string {
   const env =
@@ -95,51 +94,16 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
   );
 }
 
-const STATUS_META = {
-  "available-now": { label: "Disponible ahora", dot: "bg-emerald-400", text: "text-emerald-300" },
-  "available-soon": { label: "Libre en 2h", dot: "bg-amber-400", text: "text-amber-300" },
-  busy: { label: "Ocupado", dot: "bg-zinc-500", text: "text-zinc-400" },
-  closed: { label: "Cerrado", dot: "bg-zinc-700", text: "text-zinc-500" },
-} as const;
-
-function formatZoneTime(iso: string, timeZone: string): string {
-  try {
-    return new Intl.DateTimeFormat("es-VE", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone }).format(
-      new Date(iso),
-    );
-  } catch {
-    return "";
-  }
-}
-
 export default async function Home() {
   const settings = await prisma.businessSettings.findFirst();
   const businessId = settings?.id ?? "settings";
-  const now = new Date().getTime();
-  const windowEnd = now + 2 * 60 * 60 * 1000;
-  const [services, barbers, businessHours, testimonials, appointments, completedAppointments] = await Promise.all([
+  const [services, barbers, businessHours, testimonials, completedAppointments] = await Promise.all([
     prisma.service.findMany({ where: { active: true }, orderBy: { priceCents: "asc" } }),
     prisma.barber.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     prisma.businessHour.findMany({ where: { businessId }, orderBy: { dayOfWeek: "asc" } }),
     prisma.testimonial.findMany({ where: { businessId }, orderBy: { order: "asc" } }),
-    prisma.appointment.findMany({
-      where: { status: { not: "CANCELLED" }, startsAt: { lt: new Date(windowEnd) }, endsAt: { gt: new Date(now) } },
-      select: { barberId: true, startsAt: true, endsAt: true },
-    }),
     prisma.appointment.count({ where: { status: "COMPLETED" } }),
   ]);
-
-  const availability = computeAvailability({
-    barbers,
-    now,
-    windowStart: now,
-    windowEnd,
-    timezone: settings?.timezone ?? "America/Caracas",
-    appointmentSlot: settings?.appointmentSlot ?? 30,
-    businessHours,
-    appointments,
-  });
-  const availabilityById = new Map(availability.map((a) => [a.id, a]));
 
   const businessName = settings?.businessName ?? "BarberService";
   const currency = settings?.currency ?? "USD";
@@ -277,7 +241,7 @@ export default async function Home() {
                     {settings.subtitle}
                   </p>
                 )}
-                <p className="mt-3 max-w-lg text-[15px] leading-6 text-zinc-500">
+                <p className="mt-3 max-w-lg text-[15px] leading-6 text-zinc-400">
                   {heroDescription}
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
@@ -292,7 +256,7 @@ export default async function Home() {
                     Ver servicios
                   </a>
                 </div>
-                <div className="mt-7 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-white/10 pt-5 text-[13px] text-zinc-500">
+                <div className="mt-7 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-white/10 pt-5 text-[13px] text-zinc-400">
                   <span className="flex items-center gap-2">
                     <Star size={14} className="fill-gold text-gold" />{" "}
                     {ratingAvg
@@ -352,7 +316,7 @@ export default async function Home() {
               </div>
 
               <div className="absolute -left-5 bottom-8 z-10 animate-float rounded-2xl border border-white/10 bg-zinc-950/85 px-4 py-2.5 shadow-2xl backdrop-blur">
-                <div className="text-[9px] uppercase tracking-[0.2em] text-zinc-500">Desde</div>
+                <div className="text-[9px] uppercase tracking-[0.2em] text-zinc-400">Desde</div>
                 <div className="mt-0.5 flex items-center gap-2">
                   <span className="font-display text-lg font-semibold text-gold">{money(startingPrice, currency)}</span>
                   <span className="flex items-center gap-0.5">
@@ -371,7 +335,7 @@ export default async function Home() {
                     </div>
                     <div>
                       <div className="truncate text-[13px] font-semibold">{featured.name}</div>
-                      <div className="truncate text-[11px] text-zinc-500 line-clamp-1">{featured.specialty ?? "Barbero"}</div>
+                      <div className="truncate text-[11px] text-zinc-400 line-clamp-1">{featured.specialty ?? "Barbero"}</div>
                     </div>
                   </div>
                 </div>
@@ -396,7 +360,7 @@ export default async function Home() {
               {marqueeWords.map((word) => (
                 <span
                   key={`${dup}-${word}`}
-                  className="flex items-center gap-6 pr-6 text-xs uppercase tracking-[0.3em] text-zinc-500"
+                  className="flex items-center gap-6 pr-6 text-xs uppercase tracking-[0.3em] text-zinc-400"
                 >
                   {word} <span className="text-gold">✦</span>
                 </span>
@@ -413,7 +377,7 @@ export default async function Home() {
             <h2 className="font-display text-4xl font-semibold uppercase tracking-tight md:text-5xl">
               Servicios que inspiran
             </h2>
-            <p className="max-w-sm text-[13px] leading-5 text-zinc-500">
+            <p className="max-w-sm text-[13px] leading-5 text-zinc-400">
               Cortes, barba y más a precios claros en {currency}. Elige el tuyo y reserva tu lugar.
             </p>
           </div>
@@ -434,35 +398,14 @@ export default async function Home() {
           <h2 className="mt-3 font-display text-4xl font-semibold uppercase tracking-tight md:text-5xl">
             Nuestros Estilistas
           </h2>
-          <p className="mt-3 max-w-sm text-[13px] leading-5 text-zinc-500">
+          <p className="mt-3 max-w-sm text-[13px] leading-5 text-zinc-400">
             Cada corte es una pieza de autor. Elige a tu barbero de confianza.
           </p>
         </Reveal>
 
-        <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {barbers.map((barber, i) => (
-            <Reveal key={barber.id} delay={i * 70}>
-              <BarberCard
-                barber={barber}
-                index={i}
-                status={(() => {
-                  const status = availabilityById.get(barber.id);
-                  if (!status) return null;
-                  const cfg = STATUS_META[status.status];
-                  return {
-                    label: cfg.label,
-                    dotClass: cfg.dot,
-                    textClass: cfg.text,
-                    busyUntilLabel:
-                      status.status === "busy" && status.busyUntil
-                        ? `hasta ${formatZoneTime(status.busyUntil, settings?.timezone ?? "America/Caracas")}`
-                        : undefined,
-                  };
-                })()}
-              />
-            </Reveal>
-          ))}
-        </div>
+        <Reveal>
+          <BarberStatusGrid barbers={barbers} timezone={settings?.timezone ?? "America/Caracas"} />
+        </Reveal>
       </section>
 
       <section id="experiencia" className="mx-auto max-w-6xl px-6 py-14 md:py-16">
@@ -498,7 +441,7 @@ export default async function Home() {
                 </div>
                 <div>
                   <h3 className="font-display text-lg font-medium uppercase tracking-tight">{feature.title}</h3>
-                  <p className="mt-1 text-[13px] leading-5 text-zinc-500">{feature.text}</p>
+                  <p className="mt-1 text-[13px] leading-5 text-zinc-400">{feature.text}</p>
                 </div>
               </div>
             </Reveal>
@@ -514,7 +457,7 @@ export default async function Home() {
             ].map((stat) => (
               <div key={stat.label}>
                 <div className="font-display text-3xl font-semibold text-gold">{stat.value}</div>
-                <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-zinc-500">{stat.label}</div>
+                <div className="mt-0.5 text-[10px] uppercase tracking-[0.2em] text-zinc-400">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -533,7 +476,7 @@ export default async function Home() {
                 </div>
                 <div>
                   <h3 className="font-display text-base font-medium uppercase tracking-tight">{s.title}</h3>
-                  <p className="mt-1 text-[13px] leading-5 text-zinc-500">{s.text}</p>
+                  <p className="mt-1 text-[13px] leading-5 text-zinc-400">{s.text}</p>
                 </div>
               </div>
             ))}
@@ -568,7 +511,7 @@ export default async function Home() {
                   </div>
                   <div>
                     <div className="text-[13px] font-semibold">{item.author}</div>
-                    <div className="text-[11px] text-zinc-500">{item.role ?? "Cliente"}</div>
+                    <div className="text-[11px] text-zinc-400">{item.role ?? "Cliente"}</div>
                   </div>
                 </figcaption>
               </figure>
@@ -576,7 +519,7 @@ export default async function Home() {
           ))}
         </div>
         {testimonials.length === 0 && (
-          <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center text-sm text-zinc-500">
+          <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center text-sm text-zinc-400">
             Sin testimonios todavía.
           </div>
         )}
@@ -614,7 +557,7 @@ export default async function Home() {
                 <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex items-center gap-2.5 text-gold">
                     {item.icon}
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{item.label}</span>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">{item.label}</span>
                   </div>
                   {item.href ? (
                     <a href={item.href} className="mt-2 block break-words text-sm text-zinc-300 transition-colors hover:text-gold">
@@ -696,13 +639,13 @@ export default async function Home() {
                   {settings.slogan}
                 </p>
               )}
-              <p className="mt-3 max-w-xs text-[13px] leading-5 text-zinc-500">
+              <p className="mt-3 max-w-xs text-[13px] leading-5 text-zinc-400">
                 Cortes, barba y estilo de primer nivel en un ambiente pensado para ti. Reserva
                 online y vive la experiencia.
               </p>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Explorar</div>
+              <div className="text-[10px] uppercase tracking-[0.25em] text-zinc-400">Explorar</div>
               <ul className="mt-3 space-y-2 text-sm">
                 {[
                   { label: "Servicios", href: "#servicios" },
@@ -719,7 +662,7 @@ export default async function Home() {
               </ul>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Contacto</div>
+              <div className="text-[10px] uppercase tracking-[0.25em] text-zinc-400">Contacto</div>
               <ul className="mt-3 space-y-2 break-words text-[13px] text-zinc-400">
                 {settings?.phone && <li>{settings.phone}</li>}
                 {settings?.email && <li>{settings.email}</li>}
@@ -743,7 +686,7 @@ export default async function Home() {
               )}
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Horario</div>
+              <div className="text-[10px] uppercase tracking-[0.25em] text-zinc-400">Horario</div>
               <ul className="mt-3 space-y-1.5 text-[13px] text-zinc-400">
                 {schedule.map((line, i) => (
                   <li key={i}>{line}</li>
@@ -751,7 +694,7 @@ export default async function Home() {
               </ul>
             </div>
           </div>
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-[13px] text-zinc-500">
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-[13px] text-zinc-400">
             <span>© {new Date().getFullYear()} {businessName}</span>
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               <Link href="/terminos" className="transition-colors hover:text-gold">
@@ -765,7 +708,7 @@ export default async function Home() {
               </Link>
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-[13px] text-zinc-500">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-[13px] text-zinc-400">
             <span>
               WebMaster:{" "}
               <a href="https://github.com/noemdb" className="transition-colors hover:text-gold">
@@ -781,7 +724,7 @@ export default async function Home() {
               WhatsApp: +584121560804
             </a>
           </div>
-          <p className="mt-3 border-t border-white/10 pt-4 text-center text-[12px] text-zinc-600">
+          <p className="mt-3 border-t border-white/10 pt-4 text-center text-[12px] text-zinc-400">
             © {new Date().getFullYear()} {businessName} — Todos los derechos reservados.
             <br />
             Este sitio está bajo la licencia{" "}

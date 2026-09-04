@@ -1,12 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { ApexOptions } from "apexcharts";
+import type { ApexOptions, ApexAxisChartSeries } from "apexcharts";
 import { useTheme } from "@/components/theme/theme-provider";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-type PeriodPoint = { label: string; current: number; previous: number };
+type PeriodPoint = { label: string; current: number; previous?: number };
 
 type WeeklyRevenueChartProps = {
   weeks: PeriodPoint[];
@@ -29,6 +29,7 @@ export function WeeklyRevenueChart({ weeks, currency }: WeeklyRevenueChartProps)
   const grid = dark ? "#27272a" : "#f4f4f5";
 
   const categories = weeks.map((w) => w.label);
+  const hasPrevious = weeks.some((w) => w.previous !== undefined);
 
   const options: ApexOptions = {
     chart: {
@@ -109,13 +110,17 @@ export function WeeklyRevenueChart({ weeks, currency }: WeeklyRevenueChartProps)
     },
   };
 
+  const series: ApexAxisChartSeries = [
+    { name: "Periodo actual", data: weeks.map((w) => w.current) },
+  ];
+  if (hasPrevious) {
+    series.push({ name: "Periodo anterior", data: weeks.map((w) => w.previous ?? 0) });
+  }
+
   return (
     <Chart
       options={options}
-      series={[
-        { name: "Periodo actual", data: weeks.map((w) => w.current) },
-        { name: "Periodo anterior", data: weeks.map((w) => w.previous) },
-      ]}
+      series={series}
       type="area"
       height="100%"
     />

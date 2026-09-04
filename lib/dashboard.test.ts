@@ -23,6 +23,10 @@ describe("resolveRange", () => {
     expect(resolveRange("3m")).toEqual({ range: "3m", rangeDays: 91, rangeLabel: "Últimos 3 meses" });
     expect(resolveRange("today").rangeDays).toBe(1);
   });
+
+  it("resuelve el rango 'all' (Todos) sin límite de fechas", () => {
+    expect(resolveRange("all")).toEqual({ range: "all", rangeDays: 0, rangeLabel: "Histórico" });
+  });
 });
 
 describe("buildBucketMeta", () => {

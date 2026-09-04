@@ -44,9 +44,9 @@ export default function ServiceCard({
         <h3 className="font-display text-lg font-medium uppercase leading-tight tracking-tight md:text-xl">
           {service.name}
         </h3>
-        {service.description && <p className="mt-0.5 text-[13px] text-zinc-500">{service.description}</p>}
+        {service.description && <p className="mt-0.5 text-[13px] text-zinc-400">{service.description}</p>}
         <div className="mt-1.5 flex items-center gap-4 sm:hidden">
-          <span className="flex items-center gap-1.5 text-[13px] text-zinc-500">
+          <span className="flex items-center gap-1.5 text-[13px] text-zinc-400">
             <Clock size={13} /> {service.durationMin} min
           </span>
           <span className="font-display text-base font-semibold text-gold">
@@ -66,7 +66,7 @@ export default function ServiceCard({
         )}
       </div>
       <div className="hidden items-center gap-5 sm:flex sm:gap-8">
-        <span className="flex items-center gap-1.5 text-[13px] text-zinc-500">
+        <span className="flex items-center gap-1.5 text-[13px] text-zinc-400">
           <Clock size={13} /> {service.durationMin} min
         </span>
         <span className="font-display text-base font-semibold text-gold md:text-lg">
@@ -74,7 +74,7 @@ export default function ServiceCard({
         </span>
         <ArrowRight
           size={15}
-          className="text-zinc-600 transition-all group-hover:translate-x-0.5 group-hover:text-gold"
+          className="text-zinc-400 transition-all group-hover:translate-x-0.5 group-hover:text-gold"
         />
       </div>
     </button>

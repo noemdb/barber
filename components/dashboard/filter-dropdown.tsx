@@ -13,9 +13,15 @@ type Props = {
   optionsCount?: number;
   onChange: (value: string) => void;
   ariaLabel: string;
+  /**
+   * Cuando es true no se renderiza la entrada de "Todas" que resetea a "".
+   * Útil para dropdowns donde la primera opción es un valor real (p.ej. el
+   * periodo "Todos" => "all") en lugar de limpiar el filtro.
+   */
+  disableReset?: boolean;
 };
 
-export function FilterDropdown({ icon, placeholder, value, options, optionsCount, onChange, ariaLabel }: Props) {
+export function FilterDropdown({ icon, placeholder, value, options, optionsCount, onChange, ariaLabel, disableReset = false }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -40,7 +46,9 @@ export function FilterDropdown({ icon, placeholder, value, options, optionsCount
   }, []);
 
   const selected = options.find((o) => o.id === value);
-  const itemCount = options.length + 1; // +1 por "Todos"
+  // índice de la primera opción en optionRefs: 1 si hay entrada de reset, 0 si no.
+  const offset = disableReset ? 0 : 1;
+  const itemCount = options.length + (disableReset ? 0 : 1); // +1 por "Todas"
 
   function focusOption(index: number) {
     const clamped = (index + itemCount) % itemCount;
@@ -97,33 +105,35 @@ export function FilterDropdown({ icon, placeholder, value, options, optionsCount
           className="absolute left-0 z-50 mt-1.5 w-full min-w-[200px] overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
         >
           <ul className="max-h-60 overflow-y-auto p-1">
-            <li>
-              <button
-                ref={(el) => {
-                  optionRefs.current[0] = el;
-                }}
-                type="button"
-                role="option"
-                aria-selected={value === ""}
-                aria-label={placeholder}
-                onClick={() => choose("")}
-                onKeyDown={(e) => {
-                  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                    e.preventDefault();
-                    focusOption(e.key === "ArrowDown" ? 1 : itemCount - 1);
-                  }
-                }}
-                className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                <span>{placeholder}</span>
-                {value === "" && <Check size={14} className="shrink-0 text-zinc-950 dark:text-zinc-100" />}
-              </button>
-            </li>
+            {!disableReset && (
+              <li>
+                <button
+                  ref={(el) => {
+                    optionRefs.current[0] = el;
+                  }}
+                  type="button"
+                  role="option"
+                  aria-selected={value === ""}
+                  aria-label={placeholder}
+                  onClick={() => choose("")}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                      e.preventDefault();
+                      focusOption(e.key === "ArrowDown" ? 1 : itemCount - 1);
+                    }
+                  }}
+                  className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  <span>{placeholder}</span>
+                  {value === "" && <Check size={14} className="shrink-0 text-zinc-950 dark:text-zinc-100" />}
+                </button>
+              </li>
+            )}
             {options.map((o, i) => (
               <li key={o.id}>
                 <button
                   ref={(el) => {
-                    optionRefs.current[i + 1] = el;
+                    optionRefs.current[i + offset] = el;
                   }}
                   type="button"
                   role="option"
@@ -132,7 +142,7 @@ export function FilterDropdown({ icon, placeholder, value, options, optionsCount
                   onKeyDown={(e) => {
                     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
                       e.preventDefault();
-                      focusOption(e.key === "ArrowDown" ? i + 2 : i);
+                      focusOption(e.key === "ArrowDown" ? i + offset + 1 : i + offset - 1);
                     }
                   }}
                   className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"

@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import { CalendarClock, CalendarDays, Plus, RefreshCw } from "lucide-react";
 import { money, initials, tzFormat } from "@/lib/format";
 import UpcomingAppointmentsDialog from "@/components/upcoming-appointments-dialog";
+import AppointmentDetailDialog from "@/components/appointment-detail-dialog";
 
 type Appointment = {
   id: string;
@@ -11,6 +11,7 @@ type Appointment = {
   endsAt: string;
   status: string;
   priceCents: number;
+  notes?: string | null;
   client: { id: string; name: string; phone: string | null };
   barber: { id: string; name: string };
   service: { id: string; name: string };
@@ -32,6 +33,8 @@ const classes: Record<string, string> = {
   CANCELLED: "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400",
   NO_SHOW: "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400",
 };
+const selectCls =
+  "h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100";
 
 const toIso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -51,9 +54,27 @@ export default function AppointmentsPage() {
   const [to, setTo] = useState(addDays(today, 6));
   const [showNew, setShowNew] = useState(false);
   const [showUpcoming, setShowUpcoming] = useState(false);
+  const [services, setServices] = useState<SelectOption[]>([]);
+  const [barbers, setBarbers] = useState<SelectOption[]>([]);
+  const [filterStatus, setFilterStatus] = useState("ALL");
+  const [serviceId, setServiceId] = useState("");
+  const [barberId, setBarberId] = useState("");
+  const [detail, setDetail] = useState<Appointment | null>(null);
+
+  const qsOf = useCallback(() => {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    if (filterStatus && filterStatus !== "ALL") params.set("status", filterStatus);
+    if (serviceId) params.set("service", serviceId);
+    if (barberId) params.set("barber", barberId);
+    return params.toString();
+  }, [from, to, filterStatus, serviceId, barberId]);
+
+  const hasFilters = filterStatus !== "ALL" || !!serviceId || !!barberId;
 
   async function load() {
-    const r = await fetch(`/api/appointments?from=${from}&to=${to}`);
+    const r = await fetch(`/api/appointments?${qsOf()}`);
     const json = await r.json();
     if (json.success) {
       const data = json.data as AppointmentsData;
@@ -77,7 +98,7 @@ export default function AppointmentsPage() {
         if (cancelled) return;
         setUpcomingCount(json.success ? (json.data as AppointmentsData).appointments.length : 0);
       });
-    fetch(`/api/appointments?from=${from}&to=${to}`)
+    fetch(`/api/appointments?${qsOf()}`)
       .then((r) => r.json())
       .then((json) => {
         if (cancelled) return;
@@ -91,7 +112,16 @@ export default function AppointmentsPage() {
     return () => {
       cancelled = true;
     };
-  }, [from, to]);
+  }, [qsOf]);
+
+  useEffect(() => {
+    Promise.all([fetch("/api/services"), fetch("/api/barbers")])
+      .then(async ([s, b]) => {
+        const [sj, bj] = await Promise.all([s.json(), b.json()]);
+        setServices(sj.success ? sj.data : []);
+        setBarbers(bj.success ? bj.data : []);
+      });
+  }, []);
 
   async function status(id: string, value: string) {
     await fetch(`/api/appointments/${id}`, {
@@ -158,6 +188,49 @@ export default function AppointmentsPage() {
               onChange={(e) => setTo(e.target.value)}
               className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 text-xs bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 [color-scheme:light_dark]"
             />
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className={selectCls}
+              aria-label="Estado de la cita"
+            >
+              <option value="ALL">Todos los estados</option>
+              <option value="PENDING">{labels.PENDING}</option>
+              <option value="CONFIRMED">{labels.CONFIRMED}</option>
+              <option value="COMPLETED">{labels.COMPLETED}</option>
+              <option value="CANCELLED">{labels.CANCELLED}</option>
+              <option value="NO_SHOW">{labels.NO_SHOW}</option>
+            </select>
+            <select
+              value={serviceId}
+              onChange={(e) => setServiceId(e.target.value)}
+              className={selectCls}
+              aria-label="Servicio"
+            >
+              <option value="">Todos los servicios</option>
+              {services.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <select
+              value={barberId}
+              onChange={(e) => setBarberId(e.target.value)}
+              className={selectCls}
+              aria-label="Barbero"
+            >
+              <option value="">Todos los barberos</option>
+              {barbers.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+            {hasFilters && (
+              <button
+                onClick={() => { setFilterStatus("ALL"); setServiceId(""); setBarberId(""); }}
+                className="h-9 px-3 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+              >
+                Limpiar
+              </button>
+            )}
             <button
               onClick={() => { setLoading(true); load(); }}
               className="h-9 w-9 rounded-lg border border-zinc-200 dark:border-zinc-700 grid place-items-center text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
@@ -214,9 +287,13 @@ export default function AppointmentsPage() {
                   </td>
                   <td className="px-5 py-3 text-right font-semibold">{money(a.priceCents)}</td>
                   <td className="px-5 py-3 text-right">
-                    <Link className="text-xs font-semibold hover:underline text-zinc-600 dark:text-zinc-400" href={`/appointments/${a.id}`}>
+                    <button
+                      type="button"
+                      onClick={() => setDetail(a)}
+                      className="text-xs font-semibold hover:underline text-zinc-600 dark:text-zinc-400"
+                    >
                       Ver
-                    </Link>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -230,6 +307,7 @@ export default function AppointmentsPage() {
 
       {showNew && <NewAppointment onClose={() => setShowNew(false)} onSaved={() => { setShowNew(false); load(); loadUpcomingCount(); }} />}
       {showUpcoming && <UpcomingAppointmentsDialog onClose={() => setShowUpcoming(false)} onGoToDay={goToDay} />}
+      {detail && <AppointmentDetailDialog appointment={detail} timezone={timezone} onClose={() => setDetail(null)} />}
     </div>
   );
 }

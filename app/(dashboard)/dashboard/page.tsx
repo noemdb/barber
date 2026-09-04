@@ -20,18 +20,13 @@ export default async function DashboardPage({
 }) {
   const sp = await searchParams;
   const { range, rangeDays, rangeLabel } = resolveRange(sp.range);
+  const isAll = range === "all";
 
   const now = new Date();
   const timezone = await getBusinessTimezone();
   const todayStr = zonedNowDate(now.getTime(), timezone);
   const dayStart = zonedDayStartUtc(todayStr, timezone);
   const dayEnd = zonedDayEndUtc(todayStr, timezone);
-
-  const rangeStartStr = addZonedDays(todayStr, -(rangeDays - 1));
-  const periodStart = zonedDayStartUtc(rangeStartStr, timezone);
-  const periodEnd = zonedDayEndUtc(todayStr, timezone);
-  const prevStartStr = addZonedDays(rangeStartStr, -rangeDays);
-  const prevStart = zonedDayStartUtc(prevStartStr, timezone);
 
   // ── Catálogos para los filtros (validados contra la BD) ──────────────
   const [activeBarbers, activeServices, activeClients] = await Promise.all([
@@ -54,6 +49,29 @@ export default async function DashboardPage({
         }
       : undefined;
 
+  // ── Límites del periodo (el rango "Todos" arranca en la cita más antigua) ──
+  let rangeStartStr: string;
+  let periodStart: Date;
+  let prevStartStr: string;
+  let prevStart: Date;
+  if (isAll) {
+    const earliest = await prisma.appointment.findFirst({
+      where: apptFilter,
+      orderBy: { startsAt: "asc" },
+      select: { startsAt: true },
+    });
+    rangeStartStr = earliest ? zonedNowDate(earliest.startsAt.getTime(), timezone) : todayStr;
+    periodStart = zonedDayStartUtc(rangeStartStr, timezone);
+    prevStartStr = rangeStartStr;
+    prevStart = periodStart;
+  } else {
+    rangeStartStr = addZonedDays(todayStr, -(rangeDays - 1));
+    periodStart = zonedDayStartUtc(rangeStartStr, timezone);
+    prevStartStr = addZonedDays(rangeStartStr, -rangeDays);
+    prevStart = zonedDayStartUtc(prevStartStr, timezone);
+  }
+  const periodEnd = zonedDayEndUtc(todayStr, timezone);
+
   // ── Datos (periodo + hoy, para la agenda en tiempo real) ─────────────
   const [todayAppointments, periodAppointments, settings] =
     await Promise.all([
@@ -75,14 +93,24 @@ export default async function DashboardPage({
   const servicesCount = activeServices.length;
 
   // ── Buckets de tiempo (diario / semanal / mensual según el rango) ────
-  const { bucketSize, bucketCount, bucketLabels } = buildBucketMeta(rangeStartStr, prevStartStr, rangeDays, timezone);
-  const [currentBucket, prevBucket] = await Promise.all([
-    aggregateRevenueBuckets({ start: periodStart, end: periodEnd, rangeStartStr, bucketSize, bucketCount, timezone, barberId, serviceId, clientId }),
-    aggregateRevenueBuckets({ start: prevStart, end: periodStart, rangeStartStr: prevStartStr, bucketSize, bucketCount, timezone, barberId, serviceId, clientId }),
-  ]);
+  const bucketRangeDays = isAll ? Math.max(1, inclusiveRangeDays(rangeStartStr, todayStr)) : rangeDays;
+  const { bucketSize, bucketCount, bucketLabels } = buildBucketMeta(rangeStartStr, prevStartStr, bucketRangeDays, timezone);
+  const [currentBucket, prevBucket] = isAll
+    ? await Promise.all([
+        aggregateRevenueBuckets({ start: periodStart, end: periodEnd, rangeStartStr, bucketSize, bucketCount, timezone, barberId, serviceId, clientId }),
+        Promise.resolve(new Array<number>(bucketCount).fill(0)),
+      ])
+    : await Promise.all([
+        aggregateRevenueBuckets({ start: periodStart, end: periodEnd, rangeStartStr, bucketSize, bucketCount, timezone, barberId, serviceId, clientId }),
+        aggregateRevenueBuckets({ start: prevStart, end: periodStart, rangeStartStr: prevStartStr, bucketSize, bucketCount, timezone, barberId, serviceId, clientId }),
+      ]);
 
   const revenueBuckets = bucketLabels.map((label, i) => ({ label, amount: currentBucket[i] }));
-  const weeklyData = bucketLabels.map((label, i) => ({ label, current: currentBucket[i], previous: prevBucket[i] }));
+  const weeklyData = bucketLabels.map((label, i) => ({
+    label,
+    current: currentBucket[i],
+    ...(isAll ? {} : { previous: prevBucket[i] }),
+  }));
 
   // ── Métricas del periodo ─────────────────────────────────────────────
   const income = currentBucket.reduce((sum, v) => sum + v, 0);
@@ -132,7 +160,7 @@ export default async function DashboardPage({
   const statusLabel: Record<string, string> = { CONFIRMED: "Confirmada", PENDING: "Pendiente", COMPLETED: "Completada", CANCELLED: "Cancelada", NO_SHOW: "No asistió" };
 
   const currency = settings?.currency || "USD";
-  const periodLabel = `${new Intl.DateTimeFormat("es-VE", { day: "2-digit", month: "short", timeZone: timezone }).format(periodStart)} — ${new Intl.DateTimeFormat("es-VE", { day: "2-digit", month: "short", year: "numeric", timeZone: timezone }).format(now)}`;
+  const periodLabel = `${new Intl.DateTimeFormat("es-VE", { day: "2-digit", month: "short", ...(isAll ? { year: "numeric" } : {}), timeZone: timezone }).format(periodStart)} — ${new Intl.DateTimeFormat("es-VE", { day: "2-digit", month: "short", year: "numeric", timeZone: timezone }).format(now)}`;
 
   return (
     <div className="space-y-5">
@@ -152,12 +180,14 @@ export default async function DashboardPage({
           barbers={activeBarbers}
           services={activeServices}
           clients={activeClients}
+          resultCount={periodAppointments.length}
+          resultIncome={money(income, currency)}
         />
       </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <Stat icon={CircleDollarSign} label="Ingresos del periodo" value={money(income, currency)} trend={change === null ? "Cobros registrados" : `${change >= 0 ? "+" : ""}${change}% vs anterior`} trendDirection={change === null ? undefined : change >= 0 ? "up" : "down"} />
+        <Stat icon={CircleDollarSign} label="Ingresos del periodo" value={money(income, currency)} trend={change === null ? (isAll ? "Todo el histórico" : "Cobros registrados") : `${change >= 0 ? "+" : ""}${change}% vs anterior`} trendDirection={change === null ? undefined : change >= 0 ? "up" : "down"} />
         <Stat icon={CalendarDays} label="Citas del periodo" value={String(periodAppointments.length)} trend={`${completedPeriod} completadas`} />
         <Stat icon={Users} label="Clientes activos" value={String(clientsCount)} trend={`${barbersCount} barberos activos`} />
         <Stat icon={Scissors} label="Servicios activos" value={String(servicesCount)} trend="Catálogo disponible" />
@@ -266,7 +296,7 @@ export default async function DashboardPage({
             <TrendingUp size={17} className="text-zinc-500 dark:text-zinc-400" />
             <div>
               <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Comparativo de ingresos</h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Periodo actual vs anterior</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{isAll ? "Histórico de ingresos" : "Periodo actual vs anterior"}</p>
             </div>
           </div>
           <div className="mt-3 h-60">
@@ -315,6 +345,13 @@ export default async function DashboardPage({
       </div>
     </div>
   );
+}
+
+/** Días calendario (inclusive) entre dos fechas 'YYYY-MM-DD'. */
+function inclusiveRangeDays(startStr: string, endStr: string): number {
+  const [ys, ms, ds] = startStr.split("-").map(Number);
+  const [ye, me, de] = endStr.split("-").map(Number);
+  return Math.round((Date.UTC(ye, me - 1, de) - Date.UTC(ys, ms - 1, ds)) / 86400000) + 1;
 }
 
 function Stat({ icon: Icon, label, value, trend, trendDirection }: { icon: typeof CalendarDays; label: string; value: string; trend: string; trendDirection?: "up" | "down" }) {

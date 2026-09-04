@@ -66,12 +66,12 @@ export default function BarberCard({
           {barber.name}
         </div>
         {barber.specialty && (
-          <div className="mt-0.5 min-w-0 break-words text-[9px] uppercase tracking-[0.15em] text-zinc-500 sm:text-[11px]">
+          <div className="mt-0.5 min-w-0 break-words text-[9px] uppercase tracking-[0.15em] text-zinc-400 sm:text-[11px]">
             {barber.specialty}
           </div>
         )}
         {barber.phone && (
-          <div className="mt-1 hidden text-[10px] text-zinc-600 sm:block sm:text-xs">
+          <div className="mt-1 hidden text-[10px] text-zinc-400 sm:block sm:text-xs">
             {barber.phone}
           </div>
         )}
@@ -79,7 +79,7 @@ export default function BarberCard({
           <span className={`mt-1.5 inline-flex items-center gap-1.5 text-[10px] font-medium ${status.textClass}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${status.dotClass}`} />
             {status.label}
-            {status.busyUntilLabel && <span className="text-zinc-500">{status.busyUntilLabel}</span>}
+            {status.busyUntilLabel && <span className="text-zinc-400">{status.busyUntilLabel}</span>}
           </span>
         )}
       </div>
