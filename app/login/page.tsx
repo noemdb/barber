@@ -15,8 +15,8 @@ const CREDENTIALS = [
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState(CREDENTIALS[0].email);
-  const [password, setPassword] = useState(CREDENTIALS[0].password);
+  const [email, setEmail] = useState<string>(CREDENTIALS[0].email);
+  const [password, setPassword] = useState<string>(CREDENTIALS[0].password);
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

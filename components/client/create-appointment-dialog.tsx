@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, CheckCircle2, Clock, Loader2, Scissors, X } from "lucide-react";
+import { newHoldToken, next3Days, dayLabel } from "@/components/landing/use-booking-wizard";
 
 type Option = { id: string; name: string; durationMin?: number; priceCents?: number; specialty?: string | null };
 
@@ -10,6 +11,12 @@ const localToday = () => {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
+
+const localDateStr = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const localTimeStr = (d: Date) =>
+  `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
 export function CreateAppointmentDialog({
   services,
@@ -31,19 +38,91 @@ export function CreateAppointmentDialog({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  // ── Disponibilidad del barbero ──────────────────────────────────────────
+  const [slots, setSlots] = useState<Record<string, string[]>>({});
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [activeDay, setActiveDay] = useState("");
+  const [holdToken, setHoldToken] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const selectedService = services.find((s) => s.id === serviceId);
+  const days = next3Days();
+
+  function resetAndOpen(detail?: { date?: string; time?: string; barberId?: string }) {
+    setSuccess(false);
+    setError("");
+    setSlots({});
+    setSlotsLoading(false);
+    setActiveDay("");
+    setRefreshKey(0);
+    setHoldToken(newHoldToken());
+    if (detail?.barberId) setBarberId(detail.barberId);
+    if (detail?.date) setDate(detail.date);
+    if (detail?.time) setTime(detail.time);
+    setOpen(true);
+  }
+
   useEffect(() => {
     const openFromCalendar = (event: Event) => {
-      const detail = (event as CustomEvent<{ date?: string; time?: string; barberId?: string }>).detail;
-      if (detail?.date) setDate(detail.date);
-      if (detail?.time) setTime(detail.time);
-      if (detail?.barberId) setBarberId(detail.barberId);
-      setSuccess(false);
-      setError("");
-      setOpen(true);
+      resetAndOpen((event as CustomEvent<{ date?: string; time?: string; barberId?: string }>).detail ?? {});
     };
     window.addEventListener("barber:open-booking", openFromCalendar);
     return () => window.removeEventListener("barber:open-booking", openFromCalendar);
   }, []);
+
+  // Consultar disponibilidad para el barbero + servicio seleccionado.
+  useEffect(() => {
+    if (!open || !serviceId || !barberId) return;
+    let cancelled = false;
+    const from = new Date();
+    const to = new Date(from);
+    to.setDate(to.getDate() + 3);
+    to.setHours(23, 59, 59, 999);
+    const qs = new URLSearchParams({ from: from.toISOString(), to: to.toISOString(), token: holdToken });
+    if (selectedService?.durationMin) qs.set("durationMin", String(selectedService.durationMin));
+    setSlotsLoading(true);
+    fetch(`/api/availability?${qs.toString()}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return;
+        const barbers = (json.data?.barbers ?? []) as Array<{ id?: string; freeSlots?: string[] }>;
+        const barber = barbers.find((b) => b.id === barberId);
+        const byDay: Record<string, string[]> = {};
+        for (const iso of barber?.freeSlots ?? []) {
+          const day = localDateStr(new Date(iso));
+          (byDay[day] ??= []).push(iso);
+        }
+        setSlots(byDay);
+        setActiveDay((prev) => (prev && byDay[prev] ? prev : (Object.keys(byDay)[0] ?? "")));
+        setSlotsLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSlots({});
+          setSlotsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, serviceId, barberId, holdToken, refreshKey, selectedService?.durationMin]);
+
+  function holdSlot(startsAtIso: string) {
+    const durationMin = selectedService?.durationMin ?? 30;
+    fetch("/api/availability/hold", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barberId, startsAt: startsAtIso, durationMin, token: holdToken }),
+    })
+      .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
+      .then(({ ok, j }) => {
+        if (!ok) {
+          setError(j?.error?.message ?? "Ese horario acaba de ser reservado por otra persona");
+          setRefreshKey((k) => k + 1);
+        }
+      })
+      .catch(() => {});
+  }
 
   function close() {
     if (!submitting) setOpen(false);
@@ -62,7 +141,7 @@ export function CreateAppointmentDialog({
       const response = await fetch("/api/appointments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serviceId, barberId, startsAt: startsAt.toISOString(), notes }),
+        body: JSON.stringify({ serviceId, barberId, startsAt: startsAt.toISOString(), holdToken, notes }),
       });
       const result = await response.json();
       if (!response.ok || !result.success) throw new Error(result.error?.message ?? "No fue posible registrar la cita");
@@ -75,9 +154,16 @@ export function CreateAppointmentDialog({
     }
   }
 
+  const picksSlot = (iso: string) => {
+    const d = new Date(iso);
+    setDate(localDateStr(d));
+    setTime(localTimeStr(d));
+    holdSlot(iso);
+  };
+
   return (
     <>
-      <button type="button" onClick={() => { setSuccess(false); setError(""); setOpen(true); }} className="inline-flex h-10 items-center gap-2 rounded-xl bg-gold px-4 text-sm font-semibold text-zinc-950 transition-colors hover:bg-gold-light">
+      <button type="button" onClick={() => resetAndOpen()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-gold px-4 text-sm font-semibold text-zinc-950 transition-colors hover:bg-gold-light">
         <Calendar size={15} /> Registrar cita
       </button>
       {open && (
@@ -98,6 +184,57 @@ export function CreateAppointmentDialog({
                 <div className="mt-5 space-y-3">
                   <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">Servicio<select value={serviceId} onChange={(e) => setServiceId(e.target.value)} required className="mt-1.5 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">{services.map((service) => <option key={service.id} value={service.id}>{service.name}{service.priceCents !== undefined ? ` · ${(service.priceCents / 100).toFixed(2)} ${currency}` : ""}</option>)}</select></label>
                   <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">Barbero<select value={barberId} onChange={(e) => setBarberId(e.target.value)} required className="mt-1.5 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">{barbers.map((barber) => <option key={barber.id} value={barber.id}>{barber.name}{barber.specialty ? ` · ${barber.specialty}` : ""}</option>)}</select></label>
+
+                  {serviceId && barberId && (
+                    <div className="rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-zinc-400">
+                        <Clock size={11} /> Horarios disponibles · próximos 3 días
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {days.map((day) => (
+                          <button
+                            type="button"
+                            key={day}
+                            onClick={() => setActiveDay(day)}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                              activeDay === day
+                                ? "border-gold bg-gold/15 text-gold"
+                                : "border-zinc-200 text-zinc-600 hover:border-gold/60 hover:text-gold dark:border-zinc-700 dark:text-zinc-300"
+                            }`}
+                          >
+                            {dayLabel(day)}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {slotsLoading ? (
+                          <span className="flex items-center gap-1.5 text-[12px] text-zinc-400"><Loader2 size={12} className="animate-spin" /> Buscando disponibilidad…</span>
+                        ) : (slots[activeDay]?.length ? (
+                          slots[activeDay].map((iso) => {
+                            const d = new Date(iso);
+                            const selected = time === localTimeStr(d);
+                            return (
+                              <button
+                                type="button"
+                                key={iso}
+                                onClick={() => picksSlot(iso)}
+                                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                                  selected
+                                    ? "border-gold bg-gold/15 text-gold"
+                                    : "border-zinc-200 text-zinc-600 hover:border-gold/60 hover:text-gold dark:border-zinc-700 dark:text-zinc-300"
+                                }`}
+                              >
+                                {localTimeStr(d)}
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <span className="text-[12px] text-zinc-400">Sin huecos libres para este día.</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-3"><label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">Fecha<input type="date" value={date} min={localToday()} onChange={(e) => setDate(e.target.value)} required className="mt-1.5 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 scheme-light-dark" /></label><label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">Hora<input type="time" value={time} onChange={(e) => setTime(e.target.value)} required className="mt-1.5 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 scheme-light-dark" /><span className="mt-1 flex items-center gap-1 text-[10px] text-zinc-400"><Clock size={11} /> Intervalos de 30 min</span></label></div>
                   <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">Notas<span className="sr-only"> (opcional)</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="mt-1.5 w-full resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" /></label>
                 </div>

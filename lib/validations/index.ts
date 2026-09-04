@@ -52,6 +52,7 @@ export const appointmentCreateSchema = z.object({
     message: "Fecha de inicio inválida",
   }),
   notes: optionalText,
+  holdToken: z.string().optional(),
 });
 
 export const clientAppointmentCreateSchema = appointmentCreateSchema.omit({ clientId: true });

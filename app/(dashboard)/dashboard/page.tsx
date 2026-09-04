@@ -4,6 +4,7 @@ import { money, initials } from "@/lib/format";
 import { getBusinessTimezone, zonedNowDate, zonedDayStartUtc, zonedDayEndUtc, addZonedDays } from "@/lib/time";
 import { resolveRange, buildBucketMeta, percentChange, inclusiveDays, weekdayOf, totalMinutesOpen, hourRange } from "@/lib/dashboard";
 import { aggregateRevenueBuckets } from "@/lib/dashboard-queries";
+import { getActiveCatalogs, getDashboardSettings } from "@/lib/dashboard-cache";
 import { RevenueChart } from "@/components/dashboard/revenue-chart";
 import { BarberPerformance } from "@/components/dashboard/barber-performance";
 import { PeakHoursChart } from "@/components/dashboard/peak-hours-chart";
@@ -29,12 +30,8 @@ export default async function DashboardPage({
   const dayStart = zonedDayStartUtc(todayStr, timezone);
   const dayEnd = zonedDayEndUtc(todayStr, timezone);
 
-  // ── Catálogos para los filtros (validados contra la BD) ──────────────
-  const [activeBarbers, activeServices, activeClients] = await Promise.all([
-    prisma.barber.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-    prisma.service.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-    prisma.client.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-  ]);
+  // ── Catálogos para los filtros (validados contra la BD, cacheados) ───
+  const { barbers: activeBarbers, services: activeServices, clients: activeClients } = await getActiveCatalogs();
   const barberIds = new Set(activeBarbers.map((b) => b.id));
   const serviceIds = new Set(activeServices.map((s) => s.id));
   const clientIds = new Set(activeClients.map((c) => c.id));
@@ -51,17 +48,23 @@ export default async function DashboardPage({
       : undefined;
 
   // ── Límites del periodo (el rango "Todos" arranca en la cita más antigua) ──
+  const MAX_ALL_DAYS = 365;
   let rangeStartStr: string;
   let periodStart: Date;
   let prevStartStr: string;
   let prevStart: Date;
+  let allCapped = false;
   if (isAll) {
     const earliest = await prisma.appointment.findFirst({
       where: apptFilter,
       orderBy: { startsAt: "asc" },
       select: { startsAt: true },
     });
-    rangeStartStr = earliest ? zonedNowDate(earliest.startsAt.getTime(), timezone) : todayStr;
+    const earliestDay = earliest ? zonedNowDate(earliest.startsAt.getTime(), timezone) : todayStr;
+    // Evita que el histórico crezca sin límite: se acota a los últimos MAX_ALL_DAYS días.
+    const cappedStart = addZonedDays(todayStr, -(MAX_ALL_DAYS - 1));
+    allCapped = earliestDay < cappedStart;
+    rangeStartStr = allCapped ? cappedStart : earliestDay;
     periodStart = zonedDayStartUtc(rangeStartStr, timezone);
     prevStartStr = rangeStartStr;
     prevStart = periodStart;
@@ -72,6 +75,7 @@ export default async function DashboardPage({
     prevStart = zonedDayStartUtc(prevStartStr, timezone);
   }
   const periodEnd = zonedDayEndUtc(todayStr, timezone);
+  const rangeLabelShown = isAll && allCapped ? `Últimos ${MAX_ALL_DAYS} días` : rangeLabel;
 
   // ── Datos (periodo + hoy, para la agenda en tiempo real) ─────────────
   const [todayAppointments, periodAppointments, settings] =
@@ -95,7 +99,7 @@ export default async function DashboardPage({
           barber: { select: { id: true, name: true } },
         },
       }),
-      prisma.businessSettings.findFirst({ include: { hours: true } }),
+      getDashboardSettings(),
     ]);
   const clientsCount = activeClients.length;
   const barbersCount = activeBarbers.length;
@@ -225,7 +229,7 @@ export default async function DashboardPage({
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Panel</h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{rangeLabel} · {periodLabel}</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{rangeLabelShown} · {periodLabel}</p>
           </div>
         </div>
         <DashboardFilters
@@ -327,7 +331,7 @@ export default async function DashboardPage({
             <div>
               <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Desempeño por barbero</h2>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Ticket promedio {money(avgTicketCents, currency)} · {rangeLabel}
+                Ticket promedio {money(avgTicketCents, currency)} · {rangeLabelShown}
               </p>
             </div>
           </div>
@@ -341,7 +345,7 @@ export default async function DashboardPage({
             <PieChart size={17} className="text-zinc-500 dark:text-zinc-400" />
             <div>
               <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Estado de citas</h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{rangeLabel}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{rangeLabelShown}</p>
             </div>
           </div>
           <div className="mt-3 h-60">
@@ -368,7 +372,7 @@ export default async function DashboardPage({
         <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5">
           <div>
             <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Ingresos del periodo</h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{rangeLabel}</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{rangeLabelShown}</p>
           </div>
           {revenueBuckets.every((d) => d.amount === 0) ? (
             <p className="mt-5 grid h-48 place-items-center rounded-xl bg-zinc-50 dark:bg-zinc-900 text-xs text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800">Sin ingresos en este periodo.</p>
@@ -404,6 +408,20 @@ export default async function DashboardPage({
           </div>
         </section>
       </div>
+
+      {/* Peak hours heatmap */}
+      <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Clock3 size={17} className="text-zinc-500 dark:text-zinc-400" />
+          <div>
+            <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Horas pico</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{rangeLabelShown} · citas por día y hora</p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <PeakHoursChart days={DAY_LABELS} hours={peakHours} counts={peakCounts} />
+        </div>
+      </section>
     </div>
   );
 }

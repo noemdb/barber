@@ -8,6 +8,7 @@ import { notifyAppointmentEvent } from "@/lib/telegram/notify-appointment";
 import { toTelegramEvent } from "@/lib/telegram/event";
 import { appointmentCreateSchema, clientAppointmentCreateSchema } from "@/lib/validations";
 import { createAppointment, type AppointmentRepository } from "@/lib/services/appointment-service";
+import { assertNoConflictHold, consumeHold } from "@/lib/services/slot-hold";
 import { getBusinessTimezone, zonedDayStartUtc, zonedDayEndUtc } from "@/lib/time";
 import type { Prisma, AppointmentStatus } from "@/app/generated/prisma/client";
 import { logModelMutation } from "@/lib/binnacle";
@@ -92,13 +93,33 @@ export async function POST(request: Request) {
     } else {
       clientId = appointmentCreateSchema.parse(rawBody).clientId;
     }
+    const startsAt = new Date(body.startsAt);
+
+    // Anti doble-reserva: si otro usuario tiene retenido (hold) el horario, rechazar.
+    // Solo se aplica a la ruta del cliente (cuando envía holdToken); el admin no retiene.
+    if (body.holdToken) {
+      const service = await prisma.service.findUnique({
+        where: { id: body.serviceId },
+        select: { durationMin: true },
+      });
+      if (service) {
+        const endsAt = new Date(startsAt.getTime() + service.durationMin * 60_000);
+        await assertNoConflictHold(body.barberId, startsAt, endsAt, body.holdToken);
+      }
+    }
+
     const data = await createAppointment(appointmentRepo, {
       clientId,
       barberId: body.barberId,
       serviceId: body.serviceId,
-      startsAt: new Date(body.startsAt),
+      startsAt,
       notes: body.notes ?? null,
     });
+
+    // Consumir nuestro hold (si existe) una vez creada la cita.
+    if (body.holdToken) {
+      await consumeHold(body.holdToken, data.barberId, data.startsAt, data.endsAt);
+    }
 
     await logModelMutation({
       modelName: "Appointment",

@@ -1,6 +1,6 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, CalendarDays, Plus, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CalendarClock, CalendarDays, Check, ChevronDown, Plus, RefreshCw } from "lucide-react";
 import { money, initials, tzFormat } from "@/lib/format";
 import UpcomingAppointmentsDialog from "@/components/upcoming-appointments-dialog";
 import AppointmentDetailDialog from "@/components/appointment-detail-dialog";
@@ -273,17 +273,7 @@ export default function AppointmentsPage() {
                   <td className="px-5 py-3 text-zinc-600 dark:text-zinc-400">{a.service.name}</td>
                   <td className="px-5 py-3 text-zinc-600 dark:text-zinc-400">{a.barber.name}</td>
                   <td className="px-5 py-3">
-                    <select
-                      value={a.status}
-                      onChange={(e) => status(a.id, e.target.value)}
-                      className={`rounded-full border-0 px-2 py-1 text-[9px] font-bold cursor-pointer ${classes[a.status]}`}
-                    >
-                      <option value="PENDING">{labels.PENDING}</option>
-                      <option value="CONFIRMED">{labels.CONFIRMED}</option>
-                      <option value="COMPLETED">{labels.COMPLETED}</option>
-                      <option value="CANCELLED">{labels.CANCELLED}</option>
-                      <option value="NO_SHOW">{labels.NO_SHOW}</option>
-                    </select>
+                    <StatusMenu value={a.status} onChange={(v) => status(a.id, v)} />
                   </td>
                   <td className="px-5 py-3 text-right font-semibold">{money(a.priceCents)}</td>
                   <td className="px-5 py-3 text-right">
@@ -309,6 +299,84 @@ export default function AppointmentsPage() {
       {showUpcoming && <UpcomingAppointmentsDialog onClose={() => setShowUpcoming(false)} onGoToDay={goToDay} />}
       {detail && <AppointmentDetailDialog appointment={detail} timezone={timezone} onClose={() => setDetail(null)} />}
     </div>
+  );
+}
+
+const STATUS_MENU_WIDTH = 144; // w-36
+
+function StatusMenu({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (menuRef.current?.contains(target) || btnRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const r = btnRef.current?.getBoundingClientRect();
+    if (!r) return;
+    setPos({ top: r.bottom + 4, left: r.right - STATUS_MENU_WIDTH });
+    setOpen(true);
+  };
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={toggle}
+        className={`inline-flex items-center gap-1 rounded-full border-0 px-2 py-1 text-[9px] font-bold cursor-pointer ${classes[value]}`}
+      >
+        {labels[value] ?? value}
+        <ChevronDown size={9} strokeWidth={3} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && pos && (
+        <div
+          ref={menuRef}
+          style={{ top: pos.top, left: pos.left, width: STATUS_MENU_WIDTH }}
+          className="fixed z-50 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+        >
+          {Object.entries(labels).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                onChange(key);
+                setOpen(false);
+              }}
+              className="flex w-full items-center justify-between px-3 py-1.5 text-left text-[11px] font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              <span>{label}</span>
+              {key === value && <Check size={12} className="text-gold" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
