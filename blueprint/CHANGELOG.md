@@ -119,3 +119,54 @@ varios archivos; no existía interfaz para barbero ni para cliente.
   releen el rol desde BD.
 - `Client` se empareja por email con `findFirst` (el primero creado); se recomienda en una fase
   futura añadir `Client.userId` opcional para robustez ante cambios de correo.
+
+---
+
+## 2026-09-03 · Cambio 2 — Consolidación documental del blueprint
+
+### Objetivo
+
+Eliminar el fraccionamiento de información del plano: había 4 versiones del spec de Telegram, un
+spec ajeno (Hotel Río Yurubí) y un spec que apuntaba a una ruta equivocada (`/users`), todo disperso
+y sin índice. Se busca que cada feature tenga **un spec canónico** y que el plano sea navegable.
+
+### Qué se hizo
+
+- **`blueprint/MASTER.md`** (nuevo): índice maestro consolidado — mapa de specs con categoría,
+  estado y resumen; línea de evolución de Telegram; sección de specs auditados (ajenos/inconsistentes);
+  reglas anti-fraccionamiento. Punto de entrada único.
+- **Telegram**: se archivaron `v1`, `v2` y `v3` en `blueprint/telegramNotifications/archive/`,
+  dejando `SPEC-telegram-notifications-v4.md` como único canónico.
+- **Spec ajeno**: `audiencia/SPEC_Visitantes_dashboard.md` (Hotel Río Yurubí, rutas `src/…`,
+  `requirePermission("analytics:read")`) se movió a `blueprint/archive/SPEC_Visitantes_dashboard.md`.
+- **Spec inconsistente**: `updating/spec-user-dashboard-improvements.md` (apuntaba a `/users` como
+  dashboard de cliente) se archivó como `blueprint/archive/spec-user-dashboard-improvements-legacy.md`
+  y se creó el canónico corregido **`blueprint/updating/spec-client-portal-improvements.md`**,
+  reorientado al portal real del cliente (`/reservations`, `app/reservations/page.tsx`), con rutas,
+  modelos y guardas reales y diferenciando lo ya implementado (badges de estado, calendario,
+  `CreateAppointmentDialog`, KPIs, tema) de las mejoras propuestas.
+
+### Archivos
+
+| Archivo | Acción |
+| --- | --- |
+| `blueprint/MASTER.md` | creado |
+| `blueprint/telegramNotifications/SPEC-telegram-notifications-v1.md` | movido a archive/ |
+| `blueprint/telegramNotifications/SPEC-telegram-notifications-v2.md` | movido a archive/ |
+| `blueprint/telegramNotifications/SPEC-telegram-notifications-v3.md` | movido a archive/ |
+| `blueprint/audiencia/SPEC_Visitantes_dashboard.md` | movido a blueprint/archive/ |
+| `blueprint/updating/spec-user-dashboard-improvements.md` | movido a archive/ (legacy) |
+| `blueprint/updating/spec-client-portal-improvements.md` | creado (reescrito contra `/reservations`) |
+
+### Verificación
+
+- `npm run lint` / `typecheck` / `build`: **no aplica** (solo documentación, sin código TypeScript).
+- Revisión manual: el árbol de `blueprint/` queda indexado en `MASTER.md`; cada feature tiene un único
+  spec canónico; los specs ajenos/legados quedan archivados y señalados.
+
+### Regresión conocida
+
+- Ninguna funcionalística. Los specs archivados siguen disponibles para consultar el historial de
+  decisiones; el índice maestro (`MASTER.md`) es el nuevo punto de entrada y referencia de trazabilidad.
+- `spec-user-dashboard-improvements` (ahora `-legacy`) apuntaba a una ruta equivocada; el plan se
+  conserva, corregido, en `spec-client-portal-improvements.md` como plan **no implementado todavía**.

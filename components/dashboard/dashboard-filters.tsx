@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarRange, Scissors, User, UsersRound } from "lucide-react";
+import { CalendarRange, Scissors, User, UsersRound, X } from "lucide-react";
 import { FilterDropdown } from "./filter-dropdown";
 
 type Option = { id: string; name: string };
@@ -76,6 +76,7 @@ export function DashboardFilters({ range, barberId, serviceId, clientId, barbers
         placeholder="Todos los barberos"
         value={barberId}
         options={barbers}
+        optionsCount={barbers.length}
         onChange={(v) => go({ barberId: v })}
         ariaLabel="Filtrar por barbero"
       />
@@ -85,6 +86,7 @@ export function DashboardFilters({ range, barberId, serviceId, clientId, barbers
         placeholder="Todos los servicios"
         value={serviceId}
         options={services}
+        optionsCount={services.length}
         onChange={(v) => go({ serviceId: v })}
         ariaLabel="Filtrar por servicio"
       />
@@ -94,9 +96,22 @@ export function DashboardFilters({ range, barberId, serviceId, clientId, barbers
         placeholder="Todos los clientes"
         value={clientId}
         options={clients}
+        optionsCount={clients.length}
         onChange={(v) => go({ clientId: v })}
         ariaLabel="Filtrar por cliente"
       />
+
+      {(barberId || serviceId || clientId) && (
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard")}
+          className="inline-flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          aria-label="Limpiar filtros"
+        >
+          <X size={13} />
+          Limpiar
+        </button>
+      )}
     </div>
   );
 }

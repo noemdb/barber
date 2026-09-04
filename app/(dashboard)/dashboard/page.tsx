@@ -2,23 +2,16 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { money, initials } from "@/lib/format";
 import { getBusinessTimezone, zonedNowDate, zonedDayStartUtc, zonedDayEndUtc, addZonedDays } from "@/lib/time";
+import { resolveRange, buildBucketMeta, percentChange } from "@/lib/dashboard";
+import { aggregateRevenueBuckets } from "@/lib/dashboard-queries";
 import { RevenueChart } from "@/components/dashboard/revenue-chart";
 import { AppointmentsByBarberChart } from "@/components/dashboard/appointments-by-barber-chart";
 import { StatusDistributionChart } from "@/components/dashboard/status-distribution-chart";
 import { WeeklyRevenueChart } from "@/components/dashboard/weekly-revenue-chart";
 import { DashboardFilters } from "@/components/dashboard/dashboard-filters";
-import { ArrowUpRight, CalendarDays, CircleDollarSign, Scissors, Users, Clock3, BarChart3, PieChart, TrendingUp } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, CalendarDays, CircleDollarSign, Scissors, Users, Clock3, BarChart3, PieChart, TrendingUp } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-
-const RANGE_DAYS: Record<string, number> = { today: 1, week: 7, month: 30, "3m": 91, "6m": 182 };
-const RANGE_LABEL: Record<string, string> = {
-  today: "Hoy",
-  week: "Últimos 7 días",
-  month: "Últimos 30 días",
-  "3m": "Últimos 3 meses",
-  "6m": "Últimos 6 meses",
-};
 
 export default async function DashboardPage({
   searchParams,
@@ -26,8 +19,7 @@ export default async function DashboardPage({
   searchParams: Promise<{ range?: string; barberId?: string; serviceId?: string; clientId?: string }>;
 }) {
   const sp = await searchParams;
-  const range = sp.range && RANGE_DAYS[sp.range] ? sp.range : "week";
-  const rangeDays = RANGE_DAYS[range];
+  const { range, rangeDays, rangeLabel } = resolveRange(sp.range);
 
   const now = new Date();
   const timezone = await getBusinessTimezone();
@@ -63,7 +55,7 @@ export default async function DashboardPage({
       : undefined;
 
   // ── Datos (periodo + hoy, para la agenda en tiempo real) ─────────────
-  const [todayAppointments, periodAppointments, periodPayments, prevPayments, settings] =
+  const [todayAppointments, periodAppointments, settings] =
     await Promise.all([
       // Agenda de hoy
       prisma.appointment.findMany({
@@ -76,16 +68,6 @@ export default async function DashboardPage({
         where: { startsAt: { gte: periodStart, lt: periodEnd }, ...(apptFilter ?? {}) },
         select: { id: true, status: true, service: { select: { id: true, name: true } }, barber: { select: { name: true } } },
       }),
-      // Ingresos del periodo
-      prisma.payment.findMany({
-        where: { status: "PAID", paidAt: { gte: periodStart, lt: periodEnd }, ...(apptFilter ? { appointment: apptFilter } : {}) },
-        select: { amountCents: true, paidAt: true },
-      }),
-      // Ingresos del periodo anterior (comparativo)
-      prisma.payment.findMany({
-        where: { status: "PAID", paidAt: { gte: prevStart, lt: periodStart }, ...(apptFilter ? { appointment: apptFilter } : {}) },
-        select: { amountCents: true, paidAt: true },
-      }),
       prisma.businessSettings.findFirst(),
     ]);
   const clientsCount = activeClients.length;
@@ -93,48 +75,19 @@ export default async function DashboardPage({
   const servicesCount = activeServices.length;
 
   // ── Buckets de tiempo (diario / semanal / mensual según el rango) ────
-  const bucketSize = rangeDays <= 31 ? 1 : rangeDays <= 100 ? 7 : 30;
-  const bucketCount = Math.max(1, Math.ceil(rangeDays / bucketSize));
+  const { bucketSize, bucketCount, bucketLabels } = buildBucketMeta(rangeStartStr, prevStartStr, rangeDays, timezone);
+  const [currentBucket, prevBucket] = await Promise.all([
+    aggregateRevenueBuckets({ start: periodStart, end: periodEnd, rangeStartStr, bucketSize, bucketCount, timezone, barberId, serviceId, clientId }),
+    aggregateRevenueBuckets({ start: prevStart, end: periodStart, rangeStartStr: prevStartStr, bucketSize, bucketCount, timezone, barberId, serviceId, clientId }),
+  ]);
 
-  const dayToIndex = new Map<string, number>();
-  for (let i = 0; i < rangeDays; i++) dayToIndex.set(addZonedDays(rangeStartStr, i), i);
-  const prevDayToIndex = new Map<string, number>();
-  for (let i = 0; i < rangeDays; i++) prevDayToIndex.set(addZonedDays(prevStartStr, i), i);
-
-  const currentBucket = new Array<number>(bucketCount).fill(0);
-  for (const p of periodPayments) {
-    if (!p.paidAt) continue;
-    const idx = dayToIndex.get(zonedNowDate(p.paidAt.getTime(), timezone));
-    if (idx === undefined) continue;
-    currentBucket[Math.min(Math.floor(idx / bucketSize), bucketCount - 1)] += p.amountCents;
-  }
-  const prevBucket = new Array<number>(bucketCount).fill(0);
-  for (const p of prevPayments) {
-    if (!p.paidAt) continue;
-    const idx = prevDayToIndex.get(zonedNowDate(p.paidAt.getTime(), timezone));
-    if (idx === undefined) continue;
-    prevBucket[Math.min(Math.floor(idx / bucketSize), bucketCount - 1)] += p.amountCents;
-  }
-
-  const bucketLabels: string[] = [];
-  const fmt = (opts: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat("es-VE", { timeZone: timezone, ...opts });
-  for (let i = 0; i < bucketCount; i++) {
-    const dk = addZonedDays(rangeStartStr, i * bucketSize);
-    const dt = zonedDayStartUtc(dk, timezone);
-    let label: string;
-    if (bucketSize === 1) {
-      label = rangeDays === 1 ? "Hoy" : rangeDays <= 7 ? fmt({ weekday: "narrow" }).format(dt).toUpperCase() : fmt({ day: "2-digit", month: "short" }).format(dt);
-    } else if (bucketSize === 7) {
-      label = fmt({ day: "2-digit", month: "short" }).format(dt);
-    } else {
-      label = fmt({ month: "short" }).format(dt);
-    }
-    bucketLabels.push(label);
-  }
+  const revenueBuckets = bucketLabels.map((label, i) => ({ label, amount: currentBucket[i] }));
+  const weeklyData = bucketLabels.map((label, i) => ({ label, current: currentBucket[i], previous: prevBucket[i] }));
 
   // ── Métricas del periodo ─────────────────────────────────────────────
   const income = currentBucket.reduce((sum, v) => sum + v, 0);
+  const prevIncome = prevBucket.reduce((sum, v) => sum + v, 0);
+  const change = percentChange(income, prevIncome);
   const completedPeriod = periodAppointments.filter((a) => a.status === "COMPLETED").length;
 
   const statusCounts: Record<string, number> = {};
@@ -168,9 +121,6 @@ export default async function DashboardPage({
     .sort((a, b) => b.count - a.count)
     .slice(0, 4);
 
-  const revenueBuckets = bucketLabels.map((label, i) => ({ label, amount: currentBucket[i] }));
-  const weeklyData = bucketLabels.map((label, i) => ({ label, current: currentBucket[i], previous: prevBucket[i] }));
-
   const next = todayAppointments.find((a) => a.startsAt >= now && a.status !== "CANCELLED");
   const statusClass: Record<string, string> = {
     CONFIRMED: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400",
@@ -191,7 +141,7 @@ export default async function DashboardPage({
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Panel</h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{RANGE_LABEL[range]} · {periodLabel}</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{rangeLabel} · {periodLabel}</p>
           </div>
         </div>
         <DashboardFilters
@@ -207,7 +157,7 @@ export default async function DashboardPage({
 
       {/* Stats row */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <Stat icon={CircleDollarSign} label="Ingresos del periodo" value={money(income, currency)} trend="Cobros registrados" />
+        <Stat icon={CircleDollarSign} label="Ingresos del periodo" value={money(income, currency)} trend={change === null ? "Cobros registrados" : `${change >= 0 ? "+" : ""}${change}% vs anterior`} trendDirection={change === null ? undefined : change >= 0 ? "up" : "down"} />
         <Stat icon={CalendarDays} label="Citas del periodo" value={String(periodAppointments.length)} trend={`${completedPeriod} completadas`} />
         <Stat icon={Users} label="Clientes activos" value={String(clientsCount)} trend={`${barbersCount} barberos activos`} />
         <Stat icon={Scissors} label="Servicios activos" value={String(servicesCount)} trend="Catálogo disponible" />
@@ -290,7 +240,7 @@ export default async function DashboardPage({
             <BarChart3 size={17} className="text-zinc-500 dark:text-zinc-400" />
             <div>
               <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Citas por barbero</h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{RANGE_LABEL[range]}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{rangeLabel}</p>
             </div>
           </div>
           <div className="mt-3 h-60">
@@ -303,7 +253,7 @@ export default async function DashboardPage({
             <PieChart size={17} className="text-zinc-500 dark:text-zinc-400" />
             <div>
               <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Estado de citas</h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{RANGE_LABEL[range]}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{rangeLabel}</p>
             </div>
           </div>
           <div className="mt-3 h-60">
@@ -330,7 +280,7 @@ export default async function DashboardPage({
         <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-5">
           <div>
             <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Ingresos del periodo</h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{RANGE_LABEL[range]}</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{rangeLabel}</p>
           </div>
           {revenueBuckets.every((d) => d.amount === 0) ? (
             <p className="mt-5 grid h-48 place-items-center rounded-xl bg-zinc-50 dark:bg-zinc-900 text-xs text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800">Sin ingresos en este periodo.</p>
@@ -367,7 +317,9 @@ export default async function DashboardPage({
   );
 }
 
-function Stat({ icon: Icon, label, value, trend }: { icon: typeof CalendarDays; label: string; value: string; trend: string }) {
+function Stat({ icon: Icon, label, value, trend, trendDirection }: { icon: typeof CalendarDays; label: string; value: string; trend: string; trendDirection?: "up" | "down" }) {
+  const arrowColor =
+    trendDirection === "up" ? "text-emerald-600 dark:text-emerald-400" : trendDirection === "down" ? "text-red-600 dark:text-red-400" : "";
   return (
     <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm p-4">
       <div className="flex justify-between items-start">
@@ -375,7 +327,10 @@ function Stat({ icon: Icon, label, value, trend }: { icon: typeof CalendarDays; 
         <span className="h-8 w-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 grid place-items-center text-zinc-600 dark:text-zinc-400"><Icon size={16} /></span>
       </div>
       <div className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">{value}</div>
-      <div className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">{trend}</div>
+      <div className="mt-1 flex items-center gap-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+        {trendDirection && (trendDirection === "up" ? <ArrowUpRight size={12} className={arrowColor} /> : <ArrowDownRight size={12} className={arrowColor} />)}
+        <span>{trend}</span>
+      </div>
     </div>
   );
 }
