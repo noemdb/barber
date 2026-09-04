@@ -5,6 +5,11 @@ import {
   buildBucketMeta,
   bucketize,
   percentChange,
+  weekdayOf,
+  inclusiveDays,
+  totalMinutesOpen,
+  hourRange,
+  type BusinessHourLike,
   type PaymentPoint,
 } from "./dashboard";
 
@@ -85,5 +90,42 @@ describe("percentChange", () => {
 
   it("devuelve null cuando el valor anterior es 0", () => {
     expect(percentChange(100, 0)).toBeNull();
+  });
+});
+
+describe("horario / calendario", () => {
+  const weekdays: BusinessHourLike[] = [
+    { dayOfWeek: 1, openTime: "08:00", closeTime: "18:00" },
+    { dayOfWeek: 2, openTime: "08:00", closeTime: "18:00" },
+    { dayOfWeek: 3, openTime: "08:00", closeTime: "18:00" },
+    { dayOfWeek: 4, openTime: "08:00", closeTime: "18:00" },
+    { dayOfWeek: 5, openTime: "08:00", closeTime: "18:00" },
+  ];
+
+  it("weekdayOf mapea lunes=1..domingo=7", () => {
+    expect(weekdayOf("2026-09-04")).toBe(5); // viernes
+    expect(weekdayOf("2026-09-06")).toBe(7); // domingo
+    expect(weekdayOf("2026-09-07")).toBe(1); // lunes
+  });
+
+  it("inclusiveDays cuenta ambos extremos", () => {
+    expect(inclusiveDays("2026-09-01", "2026-09-04")).toBe(4);
+    expect(inclusiveDays("2026-09-04", "2026-09-04")).toBe(1);
+  });
+
+  it("totalMinutesOpen suma horas solo en días abiertos del rango", () => {
+    // mar 01 → vie 04 (4 días hábiles, 10h c/u = 600min)
+    expect(totalMinutesOpen(weekdays, "2026-09-01", "2026-09-04")).toBe(4 * 600);
+    // rango que cae de lunes a domingo: solo 5 hábiles
+    expect(totalMinutesOpen(weekdays, "2026-09-01", "2026-09-07")).toBe(5 * 600);
+  });
+
+  it("totalMinutesOpen ignora días cerrados", () => {
+    const closed: BusinessHourLike[] = [{ dayOfWeek: 6, openTime: null, closeTime: null }];
+    expect(totalMinutesOpen(closed, "2026-09-01", "2026-09-04")).toBe(0);
+  });
+
+  it("hourRange devuelve las horas de apertura", () => {
+    expect(hourRange(weekdays)).toEqual([8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
   });
 });

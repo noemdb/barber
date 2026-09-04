@@ -6,11 +6,17 @@ import { homeForRole } from "@/lib/roles";
 
 type Mode = "login" | "register";
 
+const CREDENTIALS = [
+  { role: "Admin", email: "admin@barberservice.local", password: "Admin123!" },
+  { role: "Barbero", email: "daniel@barberservice.local", password: "Barber123!" },
+  { role: "Cliente", email: "carlos.perez@example.com", password: "Cliente123!" },
+] as const;
+
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("admin@barberservice.local");
-  const [password, setPassword] = useState("Admin123!");
+  const [email, setEmail] = useState(CREDENTIALS[0].email);
+  const [password, setPassword] = useState(CREDENTIALS[0].password);
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -48,7 +54,7 @@ export default function LoginPage() {
       <section className="hidden lg:flex relative overflow-hidden bg-zinc-950 text-white p-12 flex-col justify-between">
         <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_30%,white,transparent_28%),radial-gradient(circle_at_80%_70%,#737373,transparent_24%)]" />
         <div className="relative flex items-center gap-3"><div className="h-10 w-10 rounded-xl bg-white text-zinc-950 grid place-items-center font-black"><Scissors size={20}/></div><div><div className="font-bold">BarberService</div><div className="text-xs text-zinc-400">Administración</div></div></div>
-        <div className="relative max-w-xl"><p className="text-sm uppercase tracking-[0.2em] text-zinc-400">Controla tu negocio</p><h1 className="mt-4 text-5xl font-semibold tracking-tight">Agenda, clientes y caja en un solo lugar.</h1><p className="mt-6 text-zinc-400 leading-7">Una base moderna y preparada para crecer con Next.js, Prisma, Neon y Vercel.</p></div>
+        <div className="relative max-w-xl"><p className="text-sm uppercase tracking-[0.2em] text-zinc-400">Controla tu negocio</p><h1 className="mt-4 text-5xl font-semibold tracking-tight">Agenda, clientes y caja en un solo lugar.</h1><p className="mt-6 text-zinc-400 leading-7">Una base moderna y preparada para crecer.</p></div>
         <div className="relative text-xs text-zinc-500">BarberService · Plataforma de gestión</div>
       </section>
       <section className="bg-white flex items-center justify-center p-6 sm:p-10">
@@ -92,7 +98,31 @@ export default function LoginPage() {
             <button disabled={loading} className="h-11 w-full rounded-xl bg-zinc-950 text-white font-semibold text-sm flex items-center justify-center gap-2 hover:bg-zinc-800 disabled:opacity-60">{loading ? <Loader2 className="animate-spin" size={17}/> : mode === "login" ? <>Iniciar sesión <ArrowRight size={16}/></> : <><UserRoundPlus size={16}/> Crear cuenta</>}</button>
           </form>
 
-          <div className="mt-7 rounded-xl bg-zinc-50 border border-zinc-200 p-4 text-xs text-zinc-500"><strong className="text-zinc-800">Demo:</strong> admin@barberservice.local / Admin123!</div>
+          <div className="mt-7 rounded-xl bg-zinc-50 border border-zinc-200 p-4">
+            <div className="text-xs font-semibold text-zinc-600 mb-2">Credenciales de prueba</div>
+            <div className="space-y-1">
+              {CREDENTIALS.map((c) => (
+                <button
+                  key={c.role}
+                  type="button"
+                  onClick={() => {
+                    setMode("login");
+                    setEmail(c.email);
+                    setPassword(c.password);
+                    setError("");
+                  }}
+                  title={`Usar ${c.role}`}
+                  className="w-full flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-zinc-200/60"
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="shrink-0 rounded-md bg-zinc-200 px-1.5 py-0.5 text-[9px] font-bold uppercase text-zinc-600">{c.role}</span>
+                    <span className="truncate text-zinc-600">{c.email}</span>
+                  </span>
+                  <span className="shrink-0 font-mono text-zinc-400">{c.password}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
     </main>
