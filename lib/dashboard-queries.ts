@@ -8,24 +8,30 @@ type RevenueAggParams = {
   bucketSize: number;
   bucketCount: number;
   timezone: string;
-  barberId?: string | null;
-  serviceId?: string | null;
-  clientId?: string | null;
+  barberId?: string | string[] | null;
+  serviceId?: string | string[] | null;
+  clientId?: string | string[] | null;
 };
 
 type AggRow = { bucket: number; amount: bigint };
+
+function toArray(v: string | string[] | null | undefined): string[] {
+  if (!v) return [];
+  return Array.isArray(v) ? v : [v];
+}
 
 /**
  * Agrega los ingresos (importes en centavos) por bucket usando agregación en la
  * base de datos (`date_trunc` + `AT TIME ZONE`), en lugar de traer todos los
  * pagos y agrupar en JS. El índice de bucket se alinea con `buildBucketMeta`.
+ * Soporta filtros multi-valor (`= ANY(...)`) para barbero/servicio/cliente.
  */
 export const aggregateRevenueBuckets = unstable_cache(
   async (params: RevenueAggParams): Promise<number[]> => {
     const { start, end, rangeStartStr, bucketSize, bucketCount, timezone } = params;
-    const barber = params.barberId || null;
-    const service = params.serviceId || null;
-    const client = params.clientId || null;
+    const barbers = toArray(params.barberId);
+    const services = toArray(params.serviceId);
+    const clients = toArray(params.clientId);
 
     const rows = await prisma.$queryRaw<AggRow[]>`
       SELECT (
@@ -37,9 +43,9 @@ export const aggregateRevenueBuckets = unstable_cache(
       WHERE p."status" = 'PAID'
         AND p."paidAt" >= ${start}
         AND p."paidAt" < ${end}
-        AND (${barber}::text IS NULL OR a."barberId" = ${barber})
-        AND (${service}::text IS NULL OR a."serviceId" = ${service})
-        AND (${client}::text IS NULL OR a."clientId" = ${client})
+        AND (cardinality(${barbers}::text[]) = 0 OR a."barberId" = ANY(${barbers}))
+        AND (cardinality(${services}::text[]) = 0 OR a."serviceId" = ANY(${services}))
+        AND (cardinality(${clients}::text[]) = 0 OR a."clientId" = ANY(${clients}))
       GROUP BY 1
     `;
 

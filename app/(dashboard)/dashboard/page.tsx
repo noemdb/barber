@@ -35,15 +35,17 @@ export default async function DashboardPage({
   const barberIds = new Set(activeBarbers.map((b) => b.id));
   const serviceIds = new Set(activeServices.map((s) => s.id));
   const clientIds = new Set(activeClients.map((c) => c.id));
-  const barberId = sp.barberId && barberIds.has(sp.barberId) ? sp.barberId : "";
-  const serviceId = sp.serviceId && serviceIds.has(sp.serviceId) ? sp.serviceId : "";
-  const clientId = sp.clientId && clientIds.has(sp.clientId) ? sp.clientId : "";
+  // Filtros multi-valor (URL usa valores separados por coma).
+  const toIds = (v: string | undefined) => (v ? v.split(",").filter(Boolean) : []);
+  const selectedBarberIds = toIds(sp.barberId).filter((id) => barberIds.has(id));
+  const selectedServiceIds = toIds(sp.serviceId).filter((id) => serviceIds.has(id));
+  const selectedClientIds = toIds(sp.clientId).filter((id) => clientIds.has(id));
   const apptFilter =
-    barberId || serviceId || clientId
+    selectedBarberIds.length || selectedServiceIds.length || selectedClientIds.length
       ? {
-          ...(barberId ? { barberId } : {}),
-          ...(serviceId ? { serviceId } : {}),
-          ...(clientId ? { clientId } : {}),
+          ...(selectedBarberIds.length ? { barberId: { in: selectedBarberIds } } : {}),
+          ...(selectedServiceIds.length ? { serviceId: { in: selectedServiceIds } } : {}),
+          ...(selectedClientIds.length ? { clientId: { in: selectedClientIds } } : {}),
         }
       : undefined;
 
@@ -110,12 +112,12 @@ export default async function DashboardPage({
   const { bucketSize, bucketCount, bucketLabels } = buildBucketMeta(rangeStartStr, prevStartStr, bucketRangeDays, timezone);
   const [currentBucket, prevBucket] = isAll
     ? await Promise.all([
-        aggregateRevenueBuckets({ start: periodStart, end: periodEnd, rangeStartStr, bucketSize, bucketCount, timezone, barberId, serviceId, clientId }),
+        aggregateRevenueBuckets({ start: periodStart, end: periodEnd, rangeStartStr, bucketSize, bucketCount, timezone, barberId: selectedBarberIds, serviceId: selectedServiceIds, clientId: selectedClientIds }),
         Promise.resolve(new Array<number>(bucketCount).fill(0)),
       ])
     : await Promise.all([
-        aggregateRevenueBuckets({ start: periodStart, end: periodEnd, rangeStartStr, bucketSize, bucketCount, timezone, barberId, serviceId, clientId }),
-        aggregateRevenueBuckets({ start: prevStart, end: periodStart, rangeStartStr: prevStartStr, bucketSize, bucketCount, timezone, barberId, serviceId, clientId }),
+        aggregateRevenueBuckets({ start: periodStart, end: periodEnd, rangeStartStr, bucketSize, bucketCount, timezone, barberId: selectedBarberIds, serviceId: selectedServiceIds, clientId: selectedClientIds }),
+        aggregateRevenueBuckets({ start: prevStart, end: periodStart, rangeStartStr: prevStartStr, bucketSize, bucketCount, timezone, barberId: selectedBarberIds, serviceId: selectedServiceIds, clientId: selectedClientIds }),
       ]);
 
   const revenueBuckets = bucketLabels.map((label, i) => ({ label, amount: currentBucket[i] }));
@@ -130,6 +132,9 @@ export default async function DashboardPage({
   const prevIncome = prevBucket.reduce((sum, v) => sum + v, 0);
   const change = percentChange(income, prevIncome);
   const completedPeriod = periodAppointments.filter((a) => a.status === "COMPLETED").length;
+  // Métrica de "citas del periodo" consistente con el desempeño por barbero:
+  // excluye canceladas y no-asistidas (solo citas efectivamente agendadas).
+  const activePeriodCount = periodAppointments.filter((a) => a.status !== "CANCELLED" && a.status !== "NO_SHOW").length;
 
   const statusCounts: Record<string, number> = {};
   for (const apt of periodAppointments) {
@@ -234,9 +239,9 @@ export default async function DashboardPage({
         </div>
         <DashboardFilters
           range={range}
-          barberId={barberId}
-          serviceId={serviceId}
-          clientId={clientId}
+          barberId={selectedBarberIds}
+          serviceId={selectedServiceIds}
+          clientId={selectedClientIds}
           barbers={activeBarbers}
           services={activeServices}
           clients={activeClients}
@@ -248,7 +253,7 @@ export default async function DashboardPage({
       {/* Stats row */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <Stat icon={CircleDollarSign} label="Ingresos del periodo" value={money(income, currency)} trend={change === null ? (isAll ? "Todo el histórico" : "Cobros registrados") : `${change >= 0 ? "+" : ""}${change}% vs anterior`} trendDirection={change === null ? undefined : change >= 0 ? "up" : "down"} />
-        <Stat icon={CalendarDays} label="Citas del periodo" value={String(periodAppointments.length)} trend={`${completedPeriod} completadas`} />
+        <Stat icon={CalendarDays} label="Citas del periodo" value={String(activePeriodCount)} trend={`${completedPeriod} completadas`} />
         <Stat icon={Users} label="Clientes activos" value={String(clientsCount)} trend={`${barbersCount} barberos activos`} />
         <Stat icon={Scissors} label="Servicios activos" value={String(servicesCount)} trend="Catálogo disponible" />
       </div>

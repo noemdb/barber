@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Manrope, Oswald } from "next/font/google";
 import { Toaster } from "sonner";
 import { prisma } from "@/lib/prisma";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -49,7 +50,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   try {
     var theme = window.localStorage.getItem("theme");
     if (!theme) {
-      theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      theme = "dark";
     }
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
@@ -58,8 +59,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 `,
           }}
         />
-        {children}
-        <Toaster position="top-right" richColors closeButton />
+        <ThemeProvider>
+          {children}
+          <Toaster position="top-right" richColors closeButton />
+        </ThemeProvider>
       </body>
     </html>
   );

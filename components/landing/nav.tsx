@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, Scissors, X } from "lucide-react";
+import ThemeToggle from "@/components/theme/theme-toggle";
 
 const links = [
   { label: "Servicios", href: "#servicios" },
@@ -51,6 +52,7 @@ export default function LandingNav({ businessName, logoUrl }: { businessName: st
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Link
             href="/login"
             className="hidden rounded-full border border-gold/50 px-4 py-2 text-[13px] font-semibold text-gold transition-colors hover:bg-gold hover:text-zinc-950 sm:block"

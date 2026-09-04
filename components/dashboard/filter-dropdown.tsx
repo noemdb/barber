@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 
 type Option = { id: string; name: string };
@@ -23,17 +23,25 @@ type Props = {
 
 export function FilterDropdown({ icon, placeholder, value, options, optionsCount, onChange, ariaLabel, disableReset = false }: Props) {
   const [open, setOpen] = useState(false);
+  const [activeId, setActiveId] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const uid = useId();
+  const listboxId = `${uid}-listbox`;
+  const optionId = (index: number) => `${uid}-opt-${index}`;
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setActiveId("");
+      }
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setOpen(false);
+        setActiveId("");
         triggerRef.current?.focus();
       }
     }
@@ -58,6 +66,7 @@ export function FilterDropdown({ icon, placeholder, value, options, optionsCount
   function choose(id: string) {
     onChange(id);
     setOpen(false);
+    setActiveId("");
     triggerRef.current?.focus();
   }
 
@@ -66,9 +75,12 @@ export function FilterDropdown({ icon, placeholder, value, options, optionsCount
       <button
         ref={triggerRef}
         type="button"
+        role="combobox"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={open ? listboxId : undefined}
+        aria-activedescendant={open && activeId ? activeId : undefined}
         aria-label={ariaLabel}
         onKeyDown={(e) => {
           if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
@@ -100,6 +112,7 @@ export function FilterDropdown({ icon, placeholder, value, options, optionsCount
 
       {open && (
         <div
+          id={listboxId}
           role="listbox"
           aria-label={ariaLabel}
           className="absolute left-0 z-50 mt-1.5 w-full min-w-[200px] overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
@@ -111,11 +124,13 @@ export function FilterDropdown({ icon, placeholder, value, options, optionsCount
                   ref={(el) => {
                     optionRefs.current[0] = el;
                   }}
+                  id={optionId(0)}
                   type="button"
                   role="option"
                   aria-selected={value === ""}
                   aria-label={placeholder}
                   onClick={() => choose("")}
+                  onFocus={() => setActiveId(optionId(0))}
                   onKeyDown={(e) => {
                     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
                       e.preventDefault();
@@ -129,29 +144,34 @@ export function FilterDropdown({ icon, placeholder, value, options, optionsCount
                 </button>
               </li>
             )}
-            {options.map((o, i) => (
-              <li key={o.id}>
-                <button
-                  ref={(el) => {
-                    optionRefs.current[i + offset] = el;
-                  }}
-                  type="button"
-                  role="option"
-                  aria-selected={value === o.id}
-                  onClick={() => choose(o.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                      e.preventDefault();
-                      focusOption(e.key === "ArrowDown" ? i + offset + 1 : i + offset - 1);
-                    }
-                  }}
-                  className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                >
-                  <span>{o.name}</span>
-                  {value === o.id && <Check size={14} className="shrink-0 text-zinc-950 dark:text-zinc-100" />}
-                </button>
-              </li>
-            ))}
+            {options.map((o, i) => {
+              const refIndex = i + offset;
+              return (
+                <li key={o.id}>
+                  <button
+                    ref={(el) => {
+                      optionRefs.current[refIndex] = el;
+                    }}
+                    id={optionId(refIndex)}
+                    type="button"
+                    role="option"
+                    aria-selected={value === o.id}
+                    onClick={() => choose(o.id)}
+                    onFocus={() => setActiveId(optionId(refIndex))}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                        e.preventDefault();
+                        focusOption(e.key === "ArrowDown" ? refIndex + 1 : refIndex - 1);
+                      }
+                    }}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    <span>{o.name}</span>
+                    {value === o.id && <Check size={14} className="shrink-0 text-zinc-950 dark:text-zinc-100" />}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

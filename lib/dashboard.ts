@@ -1,6 +1,6 @@
 import { addZonedDays, zonedNowDate, zonedDayStartUtc } from "@/lib/time";
 
-export const DEFAULT_RANGE = "week";
+export const DEFAULT_RANGE = "today";
 
 /** Sentinela para "Todos" = todo el histórico (sin límite de fechas). */
 export const RANGE_ALL = "all";

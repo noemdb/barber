@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, CheckCircle2, Clock, Loader2, Scissors, X } from "lucide-react";
 import { newHoldToken, next3Days, dayLabel } from "@/components/landing/use-booking-wizard";
@@ -48,19 +48,22 @@ export function CreateAppointmentDialog({
   const selectedService = services.find((s) => s.id === serviceId);
   const days = next3Days();
 
-  function resetAndOpen(detail?: { date?: string; time?: string; barberId?: string }) {
-    setSuccess(false);
-    setError("");
-    setSlots({});
-    setSlotsLoading(false);
-    setActiveDay("");
-    setRefreshKey(0);
-    setHoldToken(newHoldToken());
-    if (detail?.barberId) setBarberId(detail.barberId);
-    if (detail?.date) setDate(detail.date);
-    if (detail?.time) setTime(detail.time);
-    setOpen(true);
-  }
+  const resetAndOpen = useCallback(
+    (detail?: { date?: string; time?: string; barberId?: string }) => {
+      setSuccess(false);
+      setError("");
+      setSlots({});
+      setActiveDay("");
+      setRefreshKey(0);
+      setHoldToken(newHoldToken());
+      if (detail?.barberId) setBarberId(detail.barberId);
+      if (detail?.date) setDate(detail.date);
+      if (detail?.time) setTime(detail.time);
+      setSlotsLoading(Boolean(serviceId && (detail?.barberId || barberId)));
+      setOpen(true);
+    },
+    [serviceId, barberId],
+  );
 
   useEffect(() => {
     const openFromCalendar = (event: Event) => {
@@ -68,7 +71,7 @@ export function CreateAppointmentDialog({
     };
     window.addEventListener("barber:open-booking", openFromCalendar);
     return () => window.removeEventListener("barber:open-booking", openFromCalendar);
-  }, []);
+  }, [resetAndOpen]);
 
   // Consultar disponibilidad para el barbero + servicio seleccionado.
   useEffect(() => {
@@ -80,7 +83,6 @@ export function CreateAppointmentDialog({
     to.setHours(23, 59, 59, 999);
     const qs = new URLSearchParams({ from: from.toISOString(), to: to.toISOString(), token: holdToken });
     if (selectedService?.durationMin) qs.set("durationMin", String(selectedService.durationMin));
-    setSlotsLoading(true);
     fetch(`/api/availability?${qs.toString()}`)
       .then((r) => r.json())
       .then((json) => {
@@ -119,6 +121,7 @@ export function CreateAppointmentDialog({
         if (!ok) {
           setError(j?.error?.message ?? "Ese horario acaba de ser reservado por otra persona");
           setRefreshKey((k) => k + 1);
+          setSlotsLoading(true);
         }
       })
       .catch(() => {});
@@ -182,8 +185,8 @@ export function CreateAppointmentDialog({
               <form onSubmit={submit}>
                 <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-gold-light text-zinc-950"><Scissors size={18} /></div><div><h2 id="create-appointment-title" className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Registrar cita</h2><p className="text-xs text-zinc-500 dark:text-zinc-400">Precios en {currency}</p></div></div>
                 <div className="mt-5 space-y-3">
-                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">Servicio<select value={serviceId} onChange={(e) => setServiceId(e.target.value)} required className="mt-1.5 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">{services.map((service) => <option key={service.id} value={service.id}>{service.name}{service.priceCents !== undefined ? ` · ${(service.priceCents / 100).toFixed(2)} ${currency}` : ""}</option>)}</select></label>
-                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">Barbero<select value={barberId} onChange={(e) => setBarberId(e.target.value)} required className="mt-1.5 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">{barbers.map((barber) => <option key={barber.id} value={barber.id}>{barber.name}{barber.specialty ? ` · ${barber.specialty}` : ""}</option>)}</select></label>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">Servicio<select value={serviceId} onChange={(e) => { setServiceId(e.target.value); setSlotsLoading(true); }} required className="mt-1.5 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">{services.map((service) => <option key={service.id} value={service.id}>{service.name}{service.priceCents !== undefined ? ` · ${(service.priceCents / 100).toFixed(2)} ${currency}` : ""}</option>)}</select></label>
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">Barbero<select value={barberId} onChange={(e) => { setBarberId(e.target.value); setSlotsLoading(true); }} required className="mt-1.5 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">{barbers.map((barber) => <option key={barber.id} value={barber.id}>{barber.name}{barber.specialty ? ` · ${barber.specialty}` : ""}</option>)}</select></label>
 
                   {serviceId && barberId && (
                     <div className="rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">

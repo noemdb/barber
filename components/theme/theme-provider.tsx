@@ -11,13 +11,13 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
     // Sync React state with the value the anti-FOUC script already applied to
     // <html>, deferred so the initial render stays consistent for hydration.
     const value = document.documentElement.dataset.theme as "light" | "dark" | undefined;
-    if (value === "dark") {
+    if (value === "dark" || value === "light") {
       queueMicrotask(() => setTheme(value));
     }
   }, []);

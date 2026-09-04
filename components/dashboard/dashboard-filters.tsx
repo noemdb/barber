@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarRange, Scissors, User, UsersRound, X } from "lucide-react";
 import { FilterDropdown } from "./filter-dropdown";
+import { MultiFilterDropdown } from "./multi-filter-dropdown";
 
 type Option = { id: string; name: string };
 
@@ -26,16 +27,23 @@ const PERIOD_NAME: Record<string, string> = {
 };
 
 // El rango por defecto no lleva parámetro en la URL.
-const DEFAULT_RANGE = "week";
+const DEFAULT_RANGE = "today";
 
 // Clave de localStorage para recordar el último filtro usado.
 const STORAGE_KEY = "dashboard.filters";
 
+type FilterState = { range?: string; barberId?: string[]; serviceId?: string[]; clientId?: string[] };
+
+/** Normaliza un valor (string de sesiones viejas o array) a string[]. */
+function toArr(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x) => typeof x === "string") : typeof v === "string" && v ? [v] : [];
+}
+
 type Props = {
   range: string;
-  barberId: string;
-  serviceId: string;
-  clientId: string;
+  barberId: string[];
+  serviceId: string[];
+  clientId: string[];
   barbers: Option[];
   services: Option[];
   clients: Option[];
@@ -46,20 +54,30 @@ type Props = {
 export function DashboardFilters({ range, barberId, serviceId, clientId, barbers, services, clients, resultCount, resultIncome }: Props) {
   const router = useRouter();
 
-  function build(next: { range?: string; barberId?: string; serviceId?: string; clientId?: string }): string {
-    const merged = { range, barberId, serviceId, clientId, ...next };
+  function build(next: FilterState): string {
+    const merged = {
+      range: next.range ?? range,
+      barberId: toArr(next.barberId),
+      serviceId: toArr(next.serviceId),
+      clientId: toArr(next.clientId),
+    };
     const p = new URLSearchParams();
     if (merged.range !== DEFAULT_RANGE) p.set("range", merged.range);
-    if (merged.barberId) p.set("barberId", merged.barberId);
-    if (merged.serviceId) p.set("serviceId", merged.serviceId);
-    if (merged.clientId) p.set("clientId", merged.clientId);
+    if (merged.barberId.length) p.set("barberId", merged.barberId.join(","));
+    if (merged.serviceId.length) p.set("serviceId", merged.serviceId.join(","));
+    if (merged.clientId.length) p.set("clientId", merged.clientId.join(","));
     const qs = p.toString();
     return qs ? `/dashboard?${qs}` : "/dashboard";
   }
 
   /** Guarda el filtro y navega. */
-  function apply(next: { range?: string; barberId?: string; serviceId?: string; clientId?: string }) {
-    const merged = { range, barberId, serviceId, clientId, ...next };
+  function apply(next: FilterState) {
+    const merged = {
+      range: next.range ?? range,
+      barberId: toArr(next.barberId),
+      serviceId: toArr(next.serviceId),
+      clientId: toArr(next.clientId),
+    };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
     } catch {
@@ -84,9 +102,15 @@ export function DashboardFilters({ range, barberId, serviceId, clientId, barbers
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
-      const saved = JSON.parse(raw) as { range?: string; barberId?: string; serviceId?: string; clientId?: string };
+      const saved = JSON.parse(raw) as FilterState;
       if (!saved || typeof saved !== "object") return;
-      const target = build(saved);
+      const next: FilterState = {
+        range: typeof saved.range === "string" ? saved.range : undefined,
+        barberId: toArr(saved.barberId),
+        serviceId: toArr(saved.serviceId),
+        clientId: toArr(saved.clientId),
+      };
+      const target = build(next);
       const current = window.location.pathname + window.location.search;
       if (target !== current) router.replace(target);
     } catch {
@@ -95,17 +119,22 @@ export function DashboardFilters({ range, barberId, serviceId, clientId, barbers
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar
   }, []);
 
-  const barber = barbers.find((b) => b.id === barberId);
-  const service = services.find((s) => s.id === serviceId);
-  const client = clients.find((c) => c.id === clientId);
-
-  const hasActive = Boolean(barberId || serviceId || clientId || range !== DEFAULT_RANGE);
+  const hasActive = Boolean(barberId.length || serviceId.length || clientId.length || range !== DEFAULT_RANGE);
 
   const chips: { key: string; label: string; onRemove: () => void }[] = [];
   if (range !== DEFAULT_RANGE) chips.push({ key: "range", label: PERIOD_NAME[range] ?? range, onRemove: () => apply({ range: DEFAULT_RANGE }) });
-  if (barber) chips.push({ key: "barber", label: barber.name, onRemove: () => apply({ barberId: "" }) });
-  if (service) chips.push({ key: "service", label: service.name, onRemove: () => apply({ serviceId: "" }) });
-  if (client) chips.push({ key: "client", label: client.name, onRemove: () => apply({ clientId: "" }) });
+  barberId.forEach((id) => {
+    const name = barbers.find((b) => b.id === id)?.name;
+    if (name) chips.push({ key: `barber-${id}`, label: name, onRemove: () => apply({ barberId: barberId.filter((x) => x !== id) }) });
+  });
+  serviceId.forEach((id) => {
+    const name = services.find((s) => s.id === id)?.name;
+    if (name) chips.push({ key: `service-${id}`, label: name, onRemove: () => apply({ serviceId: serviceId.filter((x) => x !== id) }) });
+  });
+  clientId.forEach((id) => {
+    const name = clients.find((c) => c.id === id)?.name;
+    if (name) chips.push({ key: `client-${id}`, label: name, onRemove: () => apply({ clientId: clientId.filter((x) => x !== id) }) });
+  });
 
   return (
     <div className="space-y-2">
@@ -129,7 +158,7 @@ export function DashboardFilters({ range, barberId, serviceId, clientId, barbers
 
         <span className="hidden sm:block mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
 
-        <FilterDropdown
+        <MultiFilterDropdown
           icon={<Scissors size={13} className="shrink-0 text-zinc-600 dark:text-zinc-300" />}
           placeholder="Todos los barberos"
           value={barberId}
@@ -139,7 +168,7 @@ export function DashboardFilters({ range, barberId, serviceId, clientId, barbers
           ariaLabel="Filtrar por barbero"
         />
 
-        <FilterDropdown
+        <MultiFilterDropdown
           icon={<UsersRound size={13} className="shrink-0 text-zinc-600 dark:text-zinc-300" />}
           placeholder="Todos los servicios"
           value={serviceId}
@@ -149,7 +178,7 @@ export function DashboardFilters({ range, barberId, serviceId, clientId, barbers
           ariaLabel="Filtrar por servicio"
         />
 
-        <FilterDropdown
+        <MultiFilterDropdown
           icon={<User size={13} className="shrink-0 text-zinc-600 dark:text-zinc-300" />}
           placeholder="Todos los clientes"
           value={clientId}

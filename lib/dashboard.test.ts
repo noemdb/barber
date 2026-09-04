@@ -16,11 +16,11 @@ import {
 const TZ = "America/Caracas";
 
 describe("resolveRange", () => {
-  it("usa 'week' por defecto cuando no hay rango", () => {
-    expect(resolveRange(undefined)).toEqual({ range: "week", rangeDays: 7, rangeLabel: "Últimos 7 días" });
+  it("usa 'today' por defecto cuando no hay rango", () => {
+    expect(resolveRange(undefined)).toEqual({ range: "today", rangeDays: 1, rangeLabel: "Hoy" });
   });
 
-  it("usa 'week' para valores inválidos", () => {
+  it("usa 'today' para valores inválidos", () => {
     expect(resolveRange("nonsense").range).toBe(DEFAULT_RANGE);
   });
 
