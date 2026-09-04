@@ -116,6 +116,21 @@ model Appointment {
   @@index([clientId, startsAt])
 }
 
+/// Retiene temporalmente un horario mientras el cliente completa la reserva (anti doble-reserva).
+model SlotHold {
+  id        String   @id @default(cuid())
+  barberId  String
+  startsAt  DateTime
+  endsAt    DateTime
+  token     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([barberId, startsAt])
+  @@index([token])
+  @@index([expiresAt])
+}
+
 model Payment {
   id            String        @id @default(cuid())
   appointmentId String        @unique

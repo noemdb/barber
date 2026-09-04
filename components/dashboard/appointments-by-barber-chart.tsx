@@ -12,15 +12,24 @@ type Props = {
   barbers: BarberCount[];
 };
 
+const GOLD = ["#c8a45c", "#ddc692", "#9c7c3f", "#e8d5a8", "#b8944f"];
+
 export function AppointmentsByBarberChart({ barbers }: Props) {
   const { theme } = useTheme();
+  const dark = theme === "dark";
 
   if (barbers.length === 0) {
-    return <p className="mt-5 grid h-48 place-items-center rounded-xl bg-zinc-50 dark:bg-zinc-900 text-xs text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800">Sin datos aún.</p>;
+    return (
+      <p className="mt-5 grid h-48 place-items-center rounded-xl bg-zinc-50 dark:bg-zinc-900 text-xs text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800">
+        Sin datos aún.
+      </p>
+    );
   }
 
   const maxCount = Math.max(...barbers.map((b) => b.count));
-  const colors = ["#c8a45c", "#ddc692", "#9c7c3f", "#e8d5a8", "#b8944f"];
+  const barColors = barbers.slice(0, GOLD.length).map((_, i) => GOLD[i % GOLD.length]);
+  const text = dark ? "#a1a1aa" : "#52525b";
+  const grid = dark ? "#27272a" : "#f4f4f5";
 
   const options: ApexOptions = {
     chart: {
@@ -29,41 +38,61 @@ export function AppointmentsByBarberChart({ barbers }: Props) {
       zoom: { enabled: false },
       parentHeightOffset: 0,
       fontFamily: "var(--font-manrope), sans-serif",
+      animations: { enabled: true, speed: 450 },
     },
-    colors: barbers.slice(0, 5).map((_, i) => colors[i % colors.length]),
+    colors: barColors,
     plotOptions: {
       bar: {
-        borderRadius: 6,
+        borderRadius: 4,
         horizontal: true,
-        barHeight: "55%",
+        barHeight: "58%",
         distributed: true,
+        dataLabels: {
+          position: "center",
+        },
       },
     },
-    dataLabels: { enabled: false },
+    dataLabels: {
+      enabled: true,
+      formatter: (value) => `${value}`,
+      textAnchor: "middle",
+      style: { fontSize: "10px", fontWeight: 700, colors: ["#ffffff"] },
+      dropShadow: { enabled: false },
+    },
     grid: {
-      borderColor: theme === "dark" ? "#27272a" : "#f4f4f5",
+      borderColor: grid,
       strokeDashArray: 4,
       padding: { top: 0, right: 12, bottom: 0, left: 8 },
+      yaxis: { lines: { show: true } },
+      xaxis: { lines: { show: false } },
     },
     xaxis: {
       min: 0,
       max: maxCount + 1,
       categories: barbers.map((b) => b.name),
       labels: {
-        style: { colors: theme === "dark" ? "#71717a" : "#a1a1aa", fontSize: "10px" },
+        style: { colors: text, fontSize: "10px" },
       },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
     },
     yaxis: {
       labels: {
-        style: { colors: theme === "dark" ? "#a1a1aa" : "#52525b", fontSize: "11px" },
+        style: { colors: text, fontSize: "11px", fontWeight: 600 },
       },
     },
     tooltip: {
       theme,
-      y: { formatter: (value) => `${value} cita${value !== 1 ? "s" : ""}` },
+      style: { fontSize: "11px", fontFamily: "var(--font-manrope), sans-serif" },
+      y: {
+        formatter: (value, opts) => {
+          const name = barbers[opts?.dataPointIndex ?? 0]?.name ?? "";
+          return `${value} cita${value !== 1 ? "s" : ""}${name ? ` · ${name}` : ""}`;
+        },
+      },
     },
     states: {
-      hover: { filter: { type: "none" } },
+      hover: { filter: { type: "lighten" } },
       active: { filter: { type: "none" } },
     },
   };

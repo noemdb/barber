@@ -6,20 +6,29 @@ import { useTheme } from "@/components/theme/theme-provider";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-type WeeklyRevenueData = { dayKey: string; thisWeek: number; lastWeek: number };
+type PeriodPoint = { label: string; current: number; previous: number };
 
 type WeeklyRevenueChartProps = {
-  weeks: WeeklyRevenueData[];
+  weeks: PeriodPoint[];
   currency: string;
 };
 
 export function WeeklyRevenueChart({ weeks, currency }: WeeklyRevenueChartProps) {
   const { theme } = useTheme();
+  const dark = theme === "dark";
   const formatter = new Intl.NumberFormat("es-VE", {
     style: "currency",
     currency,
     maximumFractionDigits: 0,
   });
+
+  const primary = dark ? "#ddc692" : "#b8944f";
+  const secondary = dark ? "#52525b" : "#a1a1aa";
+  const text = dark ? "#71717a" : "#a1a1aa";
+  const legendText = dark ? "#d4d4d8" : "#3f3f46";
+  const grid = dark ? "#27272a" : "#f4f4f5";
+
+  const categories = weeks.map((w) => w.label);
 
   const options: ApexOptions = {
     chart: {
@@ -28,53 +37,74 @@ export function WeeklyRevenueChart({ weeks, currency }: WeeklyRevenueChartProps)
       zoom: { enabled: false },
       parentHeightOffset: 0,
       fontFamily: "var(--font-manrope, sans-serif)",
+      animations: { enabled: true, speed: 450 },
     },
-    colors: [theme === "dark" ? "#ddc692" : "#d4a85c", "#a1a1aa"],
-    stroke: { curve: "smooth", width: [2, 1] },
+    colors: [primary, secondary],
+    stroke: {
+      curve: "smooth",
+      width: [2.5, 1.5],
+      lineCap: "round",
+      dashArray: [0, 3],
+    },
     fill: {
-      type: "solid",
-      gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
+      type: "gradient",
+      gradient: {
+        type: "vertical",
+        shadeIntensity: 0.25,
+        opacityFrom: 0.32,
+        opacityTo: 0.02,
+        gradientToColors: [primary, secondary],
+      },
     },
-    markers: { size: 3, strokeWidth: 0, hover: { size: 5 } },
+    markers: {
+      size: 0,
+      strokeWidth: 0,
+      hover: { size: 5, sizeOffset: 0 },
+    },
     dataLabels: { enabled: false },
     grid: {
-      borderColor: theme === "dark" ? "#27272a" : "#f4f4f5",
+      borderColor: grid,
       strokeDashArray: 3,
       padding: { top: 0, right: 8, bottom: 0, left: 8 },
+      position: "back",
+      yaxis: { lines: { show: true } },
+      xaxis: { lines: { show: false } },
     },
     xaxis: {
-      categories: weeks.map((w) => w.dayKey.split("-").slice(2).join("/") + "/" + w.dayKey.split("-")[1]),
+      categories,
       axisBorder: { show: false },
       axisTicks: { show: false },
-      labels: {
-        style: { colors: theme === "dark" ? "#71717a" : "#a1a1aa", fontSize: "10px" },
-      },
+      labels: { style: { colors: text, fontSize: "10px", fontWeight: 600 } },
     },
     yaxis: {
       min: 0,
-      forceNiceScale: true as any,
+      forceNiceScale: true,
       labels: {
         formatter: (value) => formatter.format(value),
-        style: { colors: theme === "dark" ? "#71717a" : "#a1a1aa", fontSize: "10px" },
+        style: { colors: text, fontSize: "10px" },
       },
     },
     tooltip: {
       theme,
       shared: true,
-      y: { formatter: (value) => value !== undefined ? formatter.format(value as number) : "—" },
+      intersect: false,
+      style: { fontSize: "11px", fontFamily: "var(--font-manrope), sans-serif" },
+      y: {
+        formatter: (value) =>
+          value !== undefined && value !== null ? formatter.format(value as number) : "—",
+      },
     },
     legend: {
       position: "top",
       horizontalAlign: "right",
       fontSize: "10px",
       fontWeight: 600,
-      tooltips: { enabled: true },
-      markers: { size: 8 },
+      markers: { size: 6, shape: "circle" },
       itemMargin: { horizontal: 8, vertical: 0 },
-      color: theme === "dark" ? "#d4d4d8" : "#3f3f46",
-    } as any,
+      labels: { colors: legendText },
+    },
     states: {
-      hover: { filter: { type: theme === "dark" ? "none" : "darken" } },
+      hover: { filter: { type: "none" } },
       active: { filter: { type: "none" } },
     },
   };
@@ -83,8 +113,8 @@ export function WeeklyRevenueChart({ weeks, currency }: WeeklyRevenueChartProps)
     <Chart
       options={options}
       series={[
-        { name: "Esta semana", data: weeks.map((w) => w.thisWeek) },
-        { name: "Semana anterior", data: weeks.map((w) => w.lastWeek) },
+        { name: "Periodo actual", data: weeks.map((w) => w.current) },
+        { name: "Periodo anterior", data: weeks.map((w) => w.previous) },
       ]}
       type="area"
       height="100%"

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
+  BookOpen,
   CalendarDays,
   ChevronDown,
   ClipboardList,
@@ -47,6 +48,10 @@ const groups: NavGroup[] = [
       { href: "/settings/binnacle", label: "Bitácora", icon: ShieldCheck },
       { href: "/visitantes", label: "Visitantes", icon: BarChart3 },
     ],
+  },
+  {
+    label: "DOCUMENTACIÓN",
+    items: [{ href: "/manuales", label: "Manuales", icon: BookOpen }],
   },
 ];
 

@@ -20,6 +20,7 @@ export const ROUTE_RULES: Record<string, UserRole[]> = {
   "/settings": ["OWNER", "ADMIN"],
   "/users": ["OWNER", "ADMIN"],
   "/visitantes": ["OWNER", "ADMIN"],
+  "/manuales": ["OWNER", "ADMIN"],
   "/barber": ["BARBER"],
   "/reservations": ["CLIENT"],
 };

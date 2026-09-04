@@ -28,7 +28,7 @@ type CreatedAppointment = {
   client: { name: string };
 };
 
-type Step = "choice" | "services" | "confirm" | "success";
+type Step = "choice" | "services" | "barber" | "details" | "success";
 
 const localToday = () => {
   const d = new Date();
@@ -41,8 +41,34 @@ const localDateStr = (d: Date) =>
 const localTimeStr = (d: Date) =>
   `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
+function newHoldToken() {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `hold_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  }
+}
+
+// Los próximos 3 días (incluido hoy) en formato local YYYY-MM-DD.
+function next3Days(): string[] {
+  return [0, 1, 2].map((n) => {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return localDateStr(d);
+  });
+}
+
+function dayLabel(dayStr: string): string {
+  const today = localDateStr(new Date());
+  if (dayStr === today) return "Hoy";
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (dayStr === localDateStr(tomorrow)) return "Mañana";
+  return new Date(`${dayStr}T00:00:00`).toLocaleDateString("es-VE", { weekday: "short", day: "numeric" });
+}
+
 function Stepper({ current }: { current: number }) {
-  const labels = ["Elige cómo", "Servicio", "Confirma"];
+  const labels = ["Elige cómo", "Servicio", "Barbero", "Confirma"];
   return (
     <div className="mb-5 flex flex-wrap items-center gap-2">
       {labels.map((label, i) => {
@@ -61,7 +87,7 @@ function Stepper({ current }: { current: number }) {
             <span className={`whitespace-nowrap text-[11px] ${active ? "text-gold" : done ? "text-zinc-400" : "text-zinc-600"}`}>
               {label}
             </span>
-            {n < 3 && <div className={`h-px w-6 sm:w-10 ${done ? "bg-gold/50" : "bg-white/10"}`} />}
+            {n < labels.length && <div className={`h-px w-6 sm:w-10 ${done ? "bg-gold/50" : "bg-white/10"}`} />}
           </div>
         );
       })}
@@ -89,19 +115,37 @@ export default function BookingDialog({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<CreatedAppointment | null>(null);
-  const [quick, setQuick] = useState<{ barberId: string; slots: string[] }>({ barberId: "", slots: [] });
+  const [quick, setQuick] = useState<{ barberId: string; token: string; slotsByDay: Record<string, string[]> }>({
+    barberId: "",
+    token: "",
+    slotsByDay: {},
+  });
+  const [activeDay, setActiveDay] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [holdToken, setHoldToken] = useState<string>(() => newHoldToken());
 
   useEffect(() => {
-    const openDialog = () => {
-      setStep("choice");
-      setServiceId("");
-      setBarberId("");
+    const openDialog = (event: Event) => {
+      const detail = (event as CustomEvent<{ serviceId?: string; barberId?: string }>).detail;
+      const serviceId = detail?.serviceId ?? "";
+      const barberId = detail?.barberId ?? "";
+      // Servicio o barbero elegido desde el landing → aterrizar en el paso Barbero
+      // (con la selección ya tomada). Si viene el barbero, se muestra un aviso para
+      // elegir el servicio; la selección de barbero queda tomada en cuenta.
+      const step: Step = serviceId || barberId ? "barber" : "choice";
+      setStep(step);
+      setServiceId(serviceId);
+      setBarberId(barberId);
       setName("");
       setEmail("");
       setDate("");
       setTime("");
       setError("");
       setResult(null);
+      setHoldToken(newHoldToken());
+      setActiveDay("");
+      setRefreshKey(0);
+      setQuick({ barberId: "", token: "", slotsByDay: {} });
       setOpen(true);
     };
     window.addEventListener("barber:open-booking", openDialog);
@@ -127,8 +171,11 @@ export default function BookingDialog({
     const service = services.find((s) => s.id === serviceId);
     const serviceDurationMin = service?.durationMin;
     const from = new Date();
-    const to = new Date(Date.now() + 2 * 60 * 60 * 1000);
-    const qs = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+    const to = new Date(from);
+    to.setDate(to.getDate() + 3);
+    to.setHours(23, 59, 59, 999);
+    const token = holdToken;
+    const qs = new URLSearchParams({ from: from.toISOString(), to: to.toISOString(), token });
     if (serviceDurationMin) qs.set("durationMin", String(serviceDurationMin));
     fetch(`/api/availability?${qs.toString()}`)
       .then((r) => r.json())
@@ -136,22 +183,46 @@ export default function BookingDialog({
         if (cancelled) return;
         const barbers = (json.data?.barbers ?? []) as Array<{ id?: string; freeSlots?: string[] }>;
         const barber = barbers.find((b) => b?.id === barberId);
-        const today = localToday();
-        const slots = (barber?.freeSlots ?? []).filter((iso) => localDateStr(new Date(iso)) === today);
-        setQuick({ barberId, slots: slots.slice(0, 8) });
+        const slotsByDay: Record<string, string[]> = {};
+        for (const iso of barber?.freeSlots ?? []) {
+          const day = localDateStr(new Date(iso));
+          (slotsByDay[day] ??= []).push(iso);
+        }
+        setQuick({ barberId, token, slotsByDay });
+        setActiveDay((prev) => prev || localDateStr(new Date()));
       })
       .catch(() => {
-        if (!cancelled) setQuick({ barberId, slots: [] });
+        if (!cancelled) setQuick({ barberId, token, slotsByDay: {} });
       });
     return () => {
       cancelled = true;
     };
-  }, [barberId, serviceId, services]);
+  }, [barberId, serviceId, services, refreshKey, holdToken]);
 
-  const quickReady = quick.barberId === barberId && !!barberId;
-  const quickSlots = quickReady ? quick.slots : [];
+  const quickReady = quick.barberId === barberId && !!barberId && quick.token === holdToken;
+  const days = next3Days();
+  const activeSlots = quickReady ? quick.slotsByDay[activeDay] ?? [] : [];
 
-  const stepIndex = step === "choice" ? 1 : step === "services" ? 2 : 3;
+  const stepIndex = step === "choice" ? 1 : step === "services" ? 2 : step === "barber" ? 3 : step === "details" ? 4 : 5;
+
+  function holdSlot(startsAtIso: string) {
+    const token = holdToken;
+    const service = services.find((s) => s.id === serviceId);
+    const dur = service?.durationMin ?? 30;
+    fetch("/api/availability/hold", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barberId, startsAt: startsAtIso, durationMin: dur, token }),
+    })
+      .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
+      .then(({ ok, j }) => {
+        if (!ok) {
+          setError(j?.error?.message ?? "Ese horario acaba de ser reservado por otra persona");
+          setRefreshKey((k) => k + 1);
+        }
+      })
+      .catch(() => {});
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -174,7 +245,14 @@ export default function BookingDialog({
       const res = await fetch("/api/booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, serviceId, barberId, startsAt: startsAt.toISOString() }),
+        body: JSON.stringify({
+          name,
+          email,
+          serviceId,
+          barberId,
+          startsAt: startsAt.toISOString(),
+          holdToken: holdToken ?? undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error?.message ?? "No fue posible reservar");
@@ -188,6 +266,8 @@ export default function BookingDialog({
   }
 
   if (!open) return null;
+
+  const selectedService = services.find((s) => s.id === serviceId);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -267,7 +347,7 @@ export default function BookingDialog({
             <div>
               <button
                 type="button"
-                onClick={() => setStep("choice")}
+                onClick={() => setStep(barberId ? "barber" : "choice")}
                 className="flex items-center gap-1.5 text-xs text-zinc-500 transition-colors hover:text-gold"
               >
                 <ArrowLeft size={13} /> Volver
@@ -276,8 +356,18 @@ export default function BookingDialog({
                 Elige tu servicio
               </h2>
               <p className="mt-1 text-[13px] leading-5 text-zinc-400">
-                Toca una opción para seleccionar. Precios en {currency}.
+                Toca una opción para continuar. Precios en {currency}.
               </p>
+
+              {(() => {
+                const barber = barbers.find((b) => b.id === barberId);
+                if (!barber) return null;
+                return (
+                  <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs text-gold">
+                    <UserRound size={12} /> Barbero: {barber.name}
+                  </div>
+                );
+              })()}
 
               <div className="mt-4 space-y-2.5">
                 {services.map((service, i) => {
@@ -286,7 +376,10 @@ export default function BookingDialog({
                     <button
                       key={service.id}
                       type="button"
-                      onClick={() => setServiceId(service.id)}
+                      onClick={() => {
+                        setServiceId(service.id);
+                        setStep(barberId ? "details" : "barber");
+                      }}
                       className={`flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition-colors ${
                         selected ? "border-gold bg-gold/10" : "border-white/10 hover:border-white/30"
                       }`}
@@ -318,7 +411,7 @@ export default function BookingDialog({
               <button
                 type="button"
                 disabled={!serviceId}
-                onClick={() => setStep("confirm")}
+                onClick={() => setStep(barberId ? "details" : "barber")}
                 className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-gold text-sm font-semibold text-zinc-950 transition-colors hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Continuar <ArrowLeft size={14} className="rotate-180" />
@@ -326,8 +419,8 @@ export default function BookingDialog({
             </div>
           )}
 
-          {step === "confirm" && (
-            <form onSubmit={submit}>
+          {step === "barber" && (
+            <div>
               <button
                 type="button"
                 onClick={() => setStep("services")}
@@ -336,11 +429,122 @@ export default function BookingDialog({
                 <ArrowLeft size={13} /> Volver
               </button>
               <h2 id="booking-title" className="mt-3 font-display text-2xl font-semibold uppercase tracking-tight">
+                Elige tu barbero
+              </h2>
+              <p className="mt-1 text-[13px] leading-5 text-zinc-400">
+                Tu barbero de confianza. Toca una opción para continuar.
+              </p>
+
+              {selectedService ? (
+                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-gold/30 bg-gold/10 p-3.5">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gold text-zinc-950">
+                    <Scissors size={17} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold">{selectedService.name}</div>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500">
+                      <Clock size={12} /> {selectedService.durationMin} min · {money(selectedService.priceCents, currency)}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStep("services")}
+                    className="shrink-0 text-[11px] font-medium text-gold transition-colors hover:text-gold-light"
+                  >
+                    Cambiar
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setStep("services")}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 px-4 py-3 text-sm text-zinc-400 transition-colors hover:border-gold/40 hover:text-gold"
+                >
+                  <Scissors size={15} /> Elige tu servicio
+                  <ArrowLeft size={14} className="rotate-180" />
+                </button>
+              )}
+
+              <span className="mt-4 block text-[11px] uppercase tracking-[0.2em] text-zinc-500">Barbero *</span>
+              <div className="mt-1.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {barbers.map((barber) => {
+                  const selected = barberId === barber.id;
+                  return (
+                    <button
+                      key={barber.id}
+                      type="button"
+                      onClick={() => {
+                        setBarberId(barber.id);
+                        if (serviceId) setStep("details");
+                      }}
+                      className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-colors ${
+                        selected ? "border-gold bg-gold/10" : "border-white/10 hover:border-white/30"
+                      }`}
+                    >
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold-light via-gold to-gold-dark font-display text-xs font-semibold text-zinc-950">
+                        {initials(barber.name)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold">{barber.name}</div>
+                        {barber.specialty && (
+                          <div className="truncate text-xs text-zinc-500">{barber.specialty}</div>
+                        )}
+                      </div>
+                      {selected && <Check size={15} className="shrink-0 text-gold" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                disabled={!barberId || !serviceId}
+                onClick={() => setStep("details")}
+                className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-gold text-sm font-semibold text-zinc-950 transition-colors hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Continuar <ArrowLeft size={14} className="rotate-180" />
+              </button>
+            </div>
+          )}
+
+          {step === "details" && (
+            <form onSubmit={submit}>
+              <button
+                type="button"
+                onClick={() => setStep("barber")}
+                className="flex items-center gap-1.5 text-xs text-zinc-500 transition-colors hover:text-gold"
+              >
+                <ArrowLeft size={13} /> Volver
+              </button>
+              <h2 id="booking-title" className="mt-3 font-display text-2xl font-semibold uppercase tracking-tight">
                 Confirma tu cita
               </h2>
               <p className="mt-1 text-[13px] leading-5 text-zinc-400">
-                Elige tu barbero, el día y la hora. Solo necesitamos tus datos de contacto.
+                Revisa el resumen y elige el día y la hora. Solo necesitamos tus datos de contacto.
               </p>
+
+              <div className="mt-4 space-y-2.5 rounded-2xl border border-gold/20 bg-gold/5 p-4 text-sm">
+                {selectedService && (
+                  <div className="flex items-center gap-3">
+                    <Scissors size={15} className="shrink-0 text-gold" />
+                    <span className="text-zinc-200">{selectedService.name}</span>
+                    <span className="ml-auto shrink-0 text-xs text-zinc-500">
+                      {selectedService.durationMin} min · {money(selectedService.priceCents, currency)}
+                    </span>
+                  </div>
+                )}
+                {(() => {
+                  const barber = barbers.find((b) => b.id === barberId);
+                  if (!barber) return null;
+                  return (
+                    <div className="flex items-center gap-3">
+                      <UserRound size={15} className="shrink-0 text-gold" />
+                      <span className="text-zinc-200">{barber.name}</span>
+                      {barber.specialty && <span className="ml-auto shrink-0 text-xs text-zinc-500">{barber.specialty}</span>}
+                    </div>
+                  );
+                })()}
+              </div>
 
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="block">
@@ -366,42 +570,30 @@ export default function BookingDialog({
                 </label>
               </div>
 
-              <span className="mt-4 block text-[11px] uppercase tracking-[0.2em] text-zinc-500">Barbero *</span>
-              <div className="mt-1.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                {barbers.map((barber) => {
-                  const selected = barberId === barber.id;
-                  return (
-                    <button
-                      key={barber.id}
-                      type="button"
-                      onClick={() => setBarberId(barber.id)}
-                      className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-colors ${
-                        selected ? "border-gold bg-gold/10" : "border-white/10 hover:border-white/30"
-                      }`}
-                    >
-                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold-light via-gold to-gold-dark font-display text-xs font-semibold text-zinc-950">
-                        {initials(barber.name)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold">{barber.name}</div>
-                        {barber.specialty && (
-                          <div className="truncate text-xs text-zinc-500">{barber.specialty}</div>
-                        )}
-                      </div>
-                      {selected && <Check size={15} className="shrink-0 text-gold" />}
-                    </button>
-                  );
-                })}
-              </div>
-
               {barberId && (
                 <div className="mt-4">
-                  <span className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">Próximos huecos (hoy)</span>
-                  <div className="mt-1.5 flex flex-wrap gap-2">
+                  <span className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                    Horarios disponibles · próximos 3 días
+                  </span>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {days.map((day) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => setActiveDay(day)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          activeDay === day ? "border-gold bg-gold/15 text-gold" : "border-white/10 text-zinc-300 hover:border-gold/50 hover:text-gold"
+                        }`}
+                      >
+                        {dayLabel(day)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {!quickReady ? (
                       <span className="text-[12px] text-zinc-500">Buscando disponibilidad…</span>
-                    ) : quickSlots.length > 0 ? (
-                      quickSlots.map((iso) => {
+                    ) : activeSlots.length > 0 ? (
+                      activeSlots.map((iso) => {
                         const d = new Date(iso);
                         const selected = time === localTimeStr(d);
                         return (
@@ -411,6 +603,7 @@ export default function BookingDialog({
                             onClick={() => {
                               setDate(localDateStr(d));
                               setTime(localTimeStr(d));
+                              holdSlot(iso);
                             }}
                             className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                               selected
@@ -423,7 +616,7 @@ export default function BookingDialog({
                         );
                       })
                     ) : (
-                      <span className="text-[12px] text-zinc-500">Sin huecos libres en las próximas 2 horas.</span>
+                      <span className="text-[12px] text-zinc-500">Sin huecos libres para este día.</span>
                     )}
                   </div>
                 </div>

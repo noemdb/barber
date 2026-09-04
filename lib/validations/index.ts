@@ -40,6 +40,7 @@ export const bookingSchema = z.object({
   startsAt: z.string().refine((value) => !Number.isNaN(new Date(value).getTime()), {
     message: "Fecha de inicio inválida",
   }),
+  holdToken: z.string().optional(),
 });
 
 export const appointmentCreateSchema = z.object({

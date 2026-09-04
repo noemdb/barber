@@ -23,6 +23,8 @@ import LandingNav from "@/components/landing/nav";
 import Reveal from "@/components/landing/reveal";
 import BookingButton from "@/components/landing/booking-button";
 import BookingDialog from "@/components/landing/booking-dialog";
+import ServiceCard from "@/components/landing/service-card";
+import BarberCard from "@/components/landing/barber-card";
 import FloatingBookingButton from "@/components/landing/floating-booking-button";
 import FloatingWhatsAppButton from "@/components/landing/floating-whatsapp-button";
 import { VisitTracker } from "@/components/landing/visit-tracker";
@@ -420,44 +422,7 @@ export default async function Home() {
         <div className="mt-7 divide-y divide-white/10 border-y border-white/10">
           {services.map((service, i) => (
             <Reveal key={service.id} delay={Math.min(i, 4) * 60}>
-              <div className="group flex items-center gap-3 px-1 py-4 transition-colors hover:bg-white/[0.03] sm:gap-5 md:px-4">
-                <span className="font-display text-xs font-semibold text-gold/70">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <div className="order-1 min-w-0 flex-1 sm:order-none">
-                  <h3 className="font-display text-lg font-medium uppercase leading-tight tracking-tight md:text-xl">
-                    {service.name}
-                  </h3>
-                  {service.description && <p className="mt-0.5 text-[13px] text-zinc-500">{service.description}</p>}
-                  <div className="mt-1.5 flex items-center gap-4 sm:hidden">
-                    <span className="flex items-center gap-1.5 text-[13px] text-zinc-500">
-                      <Clock size={13} /> {service.durationMin} min
-                    </span>
-                    <span className="font-display text-base font-semibold text-gold">
-                      {money(service.priceCents, currency)}
-                    </span>
-                  </div>
-                </div>
-                <div className="order-2 shrink-0 sm:order-none">
-                  {service.imageUrl ? (
-                    <div className="relative h-14 w-14 overflow-hidden rounded-full border border-gold/20 bg-zinc-900 sm:h-12 sm:w-12">
-                      <Image src={service.imageUrl} alt={service.name} fill className="object-cover" sizes="(min-width: 640px) 48px, 56px" />
-                    </div>
-                  ) : (
-                    <div className="grid h-14 w-14 place-items-center rounded-full border border-gold/20 bg-zinc-900 text-gold sm:h-12 sm:w-12">
-                      <Scissors size={16} />
-                    </div>
-                  )}
-                </div>
-                <div className="hidden items-center gap-5 sm:flex sm:gap-8">
-                  <span className="flex items-center gap-1.5 text-[13px] text-zinc-500">
-                    <Clock size={13} /> {service.durationMin} min
-                  </span>
-                  <span className="font-display text-base font-semibold text-gold md:text-lg">
-                    {money(service.priceCents, currency)}
-                  </span>
-                </div>
-              </div>
+              <ServiceCard service={service} index={i} currency={currency} />
             </Reveal>
           ))}
         </div>
@@ -477,51 +442,24 @@ export default async function Home() {
         <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {barbers.map((barber, i) => (
             <Reveal key={barber.id} delay={i * 70}>
-              <div className="group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-zinc-900 to-zinc-950 p-3 transition-all duration-300 hover:-translate-y-1 hover:border-gold/40 sm:gap-4 sm:p-4">
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold-light via-gold to-gold-dark font-display text-sm font-semibold text-zinc-950 shadow-[0_4px_20px_var(--gold-glow-25)] transition-transform duration-300 group-hover:scale-105 sm:h-14 sm:w-14">
-                  {barber.avatar ? (
-                    <Image
-                      src={barber.avatar}
-                      alt={barber.name}
-                      width={100}
-                      height={100}
-                      loading={i < 2 ? "eager" : "lazy"}
-                      className="rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-zinc-950/60">{initials(barber.name)}</div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-display text-sm font-medium uppercase tracking-tight sm:text-lg">
-                    {barber.name}
-                  </div>
-                  {barber.specialty && (
-                    <div className="mt-0.5 min-w-0 break-words text-[9px] uppercase tracking-[0.15em] text-zinc-500 sm:text-[11px]">
-                      {barber.specialty}
-                    </div>
-                  )}
-                  {barber.phone && (
-                    <div className="mt-1 hidden text-[10px] text-zinc-600 sm:block sm:text-xs">
-                      {barber.phone}
-                    </div>
-                  )}
-                  {(() => {
-                    const status = availabilityById.get(barber.id);
-                    if (!status) return null;
-                    const cfg = STATUS_META[status.status];
-                    return (
-                      <span className={`mt-1.5 inline-flex items-center gap-1.5 text-[10px] font-medium ${cfg.text}`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
-                        {cfg.label}
-                        {status.status === "busy" && status.busyUntil && (
-                          <span className="text-zinc-500">hasta {formatZoneTime(status.busyUntil, settings?.timezone ?? "America/Caracas")}</span>
-                        )}
-                      </span>
-                    );
-                  })()}
-                </div>
-              </div>
+              <BarberCard
+                barber={barber}
+                index={i}
+                status={(() => {
+                  const status = availabilityById.get(barber.id);
+                  if (!status) return null;
+                  const cfg = STATUS_META[status.status];
+                  return {
+                    label: cfg.label,
+                    dotClass: cfg.dot,
+                    textClass: cfg.text,
+                    busyUntilLabel:
+                      status.status === "busy" && status.busyUntil
+                        ? `hasta ${formatZoneTime(status.busyUntil, settings?.timezone ?? "America/Caracas")}`
+                        : undefined,
+                  };
+                })()}
+              />
             </Reveal>
           ))}
         </div>

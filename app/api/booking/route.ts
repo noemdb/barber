@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { DomainError, ErrorCodes } from "@/lib/errors";
 import { bookingSchema } from "@/lib/validations";
 import { createAppointment, type AppointmentRepository } from "@/lib/services/appointment-service";
+import { assertNoConflictHold, consumeHold } from "@/lib/services/slot-hold";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { notifyAppointmentEvent } from "@/lib/telegram/notify-appointment";
 import { toTelegramEvent } from "@/lib/telegram/event";
@@ -61,13 +62,27 @@ export async function POST(request: Request) {
       client = await prisma.client.create({ data: { name: body.name.trim(), email } });
     }
 
+    const startsAt = new Date(body.startsAt);
+    const service = await prisma.service.findFirst({
+      where: { id: body.serviceId, active: true },
+      select: { durationMin: true },
+    });
+    if (!service) throw new DomainError(ErrorCodes.NOT_FOUND, "Servicio no encontrado", 404);
+    const endsAt = new Date(startsAt.getTime() + service.durationMin * 60_000);
+
+    // Anti doble-reserva: si otro usuario tiene retenido (hold) el horario, rechazar.
+    await assertNoConflictHold(body.barberId, startsAt, endsAt, body.holdToken);
+
     const data = await createAppointment(bookingRepo, {
       clientId: client.id,
       barberId: body.barberId,
       serviceId: body.serviceId,
-      startsAt: new Date(body.startsAt),
+      startsAt,
       notes: "Reserva web (invitado)",
     });
+
+    // Consumir nuestro hold (si existe) una vez creada la cita.
+    await consumeHold(body.holdToken, body.barberId, startsAt, endsAt);
 
     after(() => notifyAppointmentEvent("APPOINTMENT_CREATED", toTelegramEvent(data)));
 

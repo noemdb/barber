@@ -47,6 +47,7 @@ export const config = {
     "/settings/:path*",
     "/users/:path*",
     "/visitantes/:path*",
+    "/manuales/:path*",
     "/barber/:path*",
     "/reservations/:path*",
   ],
