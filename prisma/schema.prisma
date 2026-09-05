@@ -60,6 +60,7 @@ model Barber {
   userId       String?       @unique
   user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   appointments Appointment[]
+  services     BarberService[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -89,8 +90,20 @@ model Service {
   priceCents   Int
   active       Boolean       @default(true)
   appointments Appointment[]
+  barbers      BarberService[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+}
+
+model BarberService {
+  barberId  String
+  serviceId String
+  barber    Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([barberId, serviceId])
+  @@index([serviceId])
+  @@map("barber_services")
 }
 
 model Appointment {

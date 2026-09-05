@@ -251,6 +251,13 @@ async function main() {
     }
   }
 
+  for (const barber of barbers) {
+    await prisma.barberService.createMany({
+      data: services.map((service) => ({ barberId: barber.id, serviceId: service.id })),
+      skipDuplicates: true,
+    });
+  }
+
   const clients: { id: string; name: string }[] = [];
   for (const data of clientSeed) {
     const existing = await prisma.client.findFirst({ where: { name: data.name } });

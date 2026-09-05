@@ -12,6 +12,12 @@ const optionalEmail = z
   )
   .transform((value) => (value === "" ? null : value));
 
+const relationIds = z.array(z.string().cuid()).superRefine((ids, ctx) => {
+  if (new Set(ids).size !== ids.length) {
+    ctx.addIssue({ code: "custom", message: "No se permiten IDs duplicados" });
+  }
+});
+
 export const loginSchema = z.object({
   email: z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : value),
@@ -68,6 +74,7 @@ export const barberCreateSchema = z.object({
   email: optionalEmail,
   specialty: optionalText,
   avatar: z.string().url("El avatar debe ser una URL válida").optional(),
+  serviceIds: relationIds.default([]),
 });
 
 export const barberPatchSchema = barberCreateSchema.partial();
@@ -94,6 +101,7 @@ export const serviceCreateSchema = z.object({
   ),
   durationMin: z.number().int("La duración debe ser un entero").positive("La duración debe ser positiva"),
   priceCents: z.number().int("El precio debe ser un entero").positive("El precio debe ser positivo"),
+  barberIds: relationIds.default([]),
 });
 
 export const servicePatchSchema = serviceCreateSchema.partial();

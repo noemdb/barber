@@ -4,28 +4,32 @@ import { Check, Pencil, Plus, Scissors, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { UploadButton } from "@/lib/uploadthing";
 
-type Barber = { id: string; name: string; phone: string | null; email: string | null; specialty: string | null; avatar: string | null };
+type Barber = { id: string; name: string; phone: string | null; email: string | null; specialty: string | null; avatar: string | null; serviceIds: string[] };
+type ServiceOption = { id: string; name: string };
 
 export default function BarbersPage() {
   const [items, setItems] = useState<Barber[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Barber | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", specialty: "", avatar: "" });
+  const [services, setServices] = useState<ServiceOption[]>([]);
+  const [form, setForm] = useState({ name: "", phone: "", email: "", specialty: "", avatar: "", serviceIds: [] as string[] });
   const [uploading, setUploading] = useState(false);
 
   async function load() {
-    const r = await fetch("/api/barbers");
-    const json = await r.json();
-    setItems(json.success ? json.data : []);
+    const [barbersResponse, servicesResponse] = await Promise.all([fetch("/api/barbers"), fetch("/api/services")]);
+    const [barbersJson, servicesJson] = await Promise.all([barbersResponse.json(), servicesResponse.json()]);
+    setItems(barbersJson.success ? barbersJson.data : []);
+    setServices(servicesJson.success ? servicesJson.data : []);
   }
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/barbers")
-      .then((r) => r.json())
-      .then((json) => {
+    Promise.all([fetch("/api/barbers"), fetch("/api/services")])
+      .then((responses) => Promise.all(responses.map((r) => r.json())))
+      .then(([barbersJson, servicesJson]) => {
         if (cancelled) return;
-        setItems(json.success ? json.data : []);
+        setItems(barbersJson.success ? barbersJson.data : []);
+        setServices(servicesJson.success ? servicesJson.data : []);
       });
     return () => {
       cancelled = true;
@@ -44,7 +48,7 @@ export default function BarbersPage() {
       toast.error(json.error?.message || "No se pudo guardar el barbero");
       return;
     }
-    setForm({ name: "", phone: "", email: "", specialty: "", avatar: "" });
+    setForm({ name: "", phone: "", email: "", specialty: "", avatar: "", serviceIds: [] });
     setOpen(false);
     setEditing(null);
     toast.success(editing ? "Barbero actualizado" : "Barbero creado");
@@ -59,6 +63,7 @@ export default function BarbersPage() {
       email: barber.email || "",
       specialty: barber.specialty || "",
       avatar: barber.avatar || "",
+      serviceIds: barber.serviceIds ?? [],
     });
     setOpen(true);
   }
@@ -123,8 +128,8 @@ export default function BarbersPage() {
       </div>
       {items.length === 0 && <div className="p-10 text-center text-sm text-zinc-500 dark:text-zinc-400">Sin barberos registrados.</div>}
       {open && (
-        <div className="fixed inset-0 z-50 bg-black/40 dark:bg-black/60 grid place-items-center p-4 backdrop-blur-sm" onMouseDown={() => setOpen(false)}>
-          <form onSubmit={save} onMouseDown={(e) => e.stopPropagation()} className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl p-5 shadow-2xl border border-zinc-200 dark:border-zinc-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm dark:bg-black/60" onMouseDown={() => setOpen(false)}>
+          <form onSubmit={save} onMouseDown={(e) => e.stopPropagation()} className="my-auto w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
             <h2 className="font-semibold text-lg text-zinc-900 dark:text-zinc-100">{editing ? "Editar barbero" : "Nuevo barbero"}</h2>
             <div className="mt-5 space-y-4">
               {([["Nombre", "name"], ["Teléfono", "phone"], ["Correo", "email"], ["Especialidad", "specialty"]] as const).map(([label, key]) => (
@@ -137,7 +142,41 @@ export default function BarbersPage() {
                   />
                 </label>
               ))}
-                <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              <fieldset className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                <legend>Servicios ofrecidos</legend>
+                <span className="mt-1.5 flex items-center justify-between text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
+                  <span>Selecciona los servicios que puede realizar.</span>
+                  <span>{form.serviceIds.length} seleccionados</span>
+                </span>
+                <div className="mt-2 grid h-auto grid-cols-1 gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-950/60 sm:grid-cols-2">
+                  {services.length > 0 ? services.map((service) => {
+                    const selected = form.serviceIds.includes(service.id);
+                    return (
+                      <label
+                        key={service.id}
+                        className={`group relative flex min-h-[76px] cursor-pointer flex-col justify-between rounded-xl border p-3 text-sm transition-all ${
+                          selected ? "border-zinc-950 bg-zinc-950 text-white shadow-md dark:border-gold dark:bg-gold dark:text-zinc-950" : "border-zinc-200 bg-white text-zinc-700 hover:-translate-y-0.5 hover:border-zinc-400 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => setForm({ ...form, serviceIds: selected ? form.serviceIds.filter((id) => id !== service.id) : [...form.serviceIds, service.id] })}
+                          className="sr-only"
+                        />
+                        <span className="flex items-start justify-between gap-2">
+                          <span className="line-clamp-2 font-semibold leading-5">{service.name}</span>
+                          <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border text-[11px] ${selected ? "border-current bg-current/10" : "border-zinc-300 dark:border-zinc-600"}`} aria-hidden="true">
+                            {selected ? <Check size={12} /> : null}
+                          </span>
+                        </span>
+                        <span className={`text-[10px] uppercase tracking-[0.14em] ${selected ? "text-current/70" : "text-zinc-400"}`}>{selected ? "Asignado" : "Seleccionar"}</span>
+                      </label>
+                    );
+                  }) : <span className="block px-3 py-3 text-xs font-normal text-zinc-500">No hay servicios activos disponibles.</span>}
+                </div>
+              </fieldset>
+              <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                   Avatar
                   <div className="mt-2 flex flex-col gap-3 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-3 sm:flex-row sm:items-center">
                     <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">

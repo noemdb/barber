@@ -2,8 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { requireRoleOrRedirect } from "@/lib/permissions";
 import { getCurrentBarber, barberScope } from "@/lib/scope";
 import { getBusinessTimezone, zonedNowDate, zonedDayStartUtc, zonedDayEndUtc } from "@/lib/time";
+import { getActiveServicesByBarberId } from "@/lib/services/barber-service";
 import { money, initials } from "@/lib/format";
-import { CalendarDays, CheckCircle2, CircleDollarSign, Clock3 } from "lucide-react";
+import { CalendarDays, CheckCircle2, CircleDollarSign, Clock3, Scissors, UserRound } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export default async function BarberHomePage() {
   const dayEnd = zonedDayEndUtc(todayStr, timezone);
   const scope = barberScope(barber);
 
-  const [todayAppointments, upcoming, completedCount, paidIncome, settings] = await Promise.all([
+  const [todayAppointments, upcoming, completedCount, paidIncome, settings, services, recurrentClientGroup] = await Promise.all([
     prisma.appointment.findMany({
       where: { ...scope, startsAt: { gte: dayStart, lt: dayEnd } },
       include: { client: true, service: true },
@@ -53,7 +54,20 @@ export default async function BarberHomePage() {
       _sum: { amountCents: true },
     }),
     prisma.businessSettings.findFirst(),
+    getActiveServicesByBarberId(barber.id, prisma),
+    prisma.appointment.groupBy({
+      by: ["clientId"],
+      where: { ...scope, status: { notIn: ["CANCELLED", "NO_SHOW"] } },
+      _count: { clientId: true },
+      orderBy: { _count: { clientId: "desc" } },
+      take: 1,
+    }),
   ]);
+
+  const recurrentClient = recurrentClientGroup[0]
+    ? await prisma.client.findUnique({ where: { id: recurrentClientGroup[0].clientId }, select: { name: true } })
+    : null;
+  const recurrentClientCount = recurrentClientGroup[0]?._count.clientId ?? 0;
 
   const currency = settings?.currency || "USD";
   const income = paidIncome._sum.amountCents ?? 0;
@@ -67,6 +81,54 @@ export default async function BarberHomePage() {
         <Stat icon={CheckCircle2} label="Completadas" value={String(completedCount)} />
         <Stat icon={CircleDollarSign} label="Ingresos de hoy" value={money(income, currency)} />
       </div>
+
+      <section className="flex items-center gap-4 rounded-2xl border border-gold/30 bg-gold/10 p-4 shadow-sm dark:bg-gold/5">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold text-zinc-950">
+          <UserRound size={19} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Cliente más recurrente</p>
+          {recurrentClient ? (
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <p className="truncate text-lg font-semibold text-zinc-900 dark:text-zinc-100">{recurrentClient.name}</p>
+              <span className="text-xs text-zinc-600 dark:text-zinc-400">{recurrentClientCount} {recurrentClientCount === 1 ? "cita" : "citas"}</span>
+            </div>
+          ) : (
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Aún no hay citas registradas.</p>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Mis servicios</h2>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Servicios que tienes habilitados para atender.</p>
+          </div>
+          <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            {services.length} {services.length === 1 ? "servicio" : "servicios"}
+          </span>
+        </div>
+        {services.length > 0 ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {services.map((service) => (
+              <div key={service.id} className="flex items-center gap-3 rounded-xl border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/50">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gold/15 text-gold dark:bg-gold/10">
+                  <Scissors size={16} />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{service.name}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{service.durationMin} min · {money(service.priceCents, currency)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+            No tienes servicios asociados. Contacta al administrador para actualizar tu perfil.
+          </div>
+        )}
+      </section>
 
       <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div className="border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">

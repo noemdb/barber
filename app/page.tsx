@@ -97,13 +97,26 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 export default async function Home() {
   const settings = await prisma.businessSettings.findFirst();
   const businessId = settings?.id ?? "settings";
-  const [services, barbers, businessHours, testimonials, completedAppointments] = await Promise.all([
+  const [services, barbers, businessHours, testimonials, completedAppointments, assignments] = await Promise.all([
     prisma.service.findMany({ where: { active: true }, orderBy: { priceCents: "asc" } }),
     prisma.barber.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     prisma.businessHour.findMany({ where: { businessId }, orderBy: { dayOfWeek: "asc" } }),
     prisma.testimonial.findMany({ where: { businessId }, orderBy: { order: "asc" } }),
     prisma.appointment.count({ where: { status: "COMPLETED" } }),
+    prisma.barberService.findMany({
+      where: { barber: { active: true }, service: { active: true } },
+      select: { barberId: true, serviceId: true },
+    }),
   ]);
+
+  const serviceIdsByBarber = new Map<string, string[]>();
+  const barberIdsByService = new Map<string, string[]>();
+  for (const assignment of assignments) {
+    serviceIdsByBarber.set(assignment.barberId, [...(serviceIdsByBarber.get(assignment.barberId) ?? []), assignment.serviceId]);
+    barberIdsByService.set(assignment.serviceId, [...(barberIdsByService.get(assignment.serviceId) ?? []), assignment.barberId]);
+  }
+  const bookingServices = services.map((service) => ({ ...service, barberIds: barberIdsByService.get(service.id) ?? [] }));
+  const bookingBarbers = barbers.map((barber) => ({ ...barber, serviceIds: serviceIdsByBarber.get(barber.id) ?? [] }));
 
   const businessName = settings?.businessName ?? "BarberService";
   const currency = settings?.currency ?? "USD";
@@ -741,7 +754,7 @@ export default async function Home() {
         </div>
       </footer>
 
-      <BookingDialog services={services} barbers={barbers} currency={currency} />
+      <BookingDialog services={bookingServices} barbers={bookingBarbers} currency={currency} />
 
       <VisitTracker />
 

@@ -93,6 +93,8 @@ export default function BookingDialog({
     activeSlots,
     stepIndex,
     selectedService,
+    availableServices,
+    availableBarbers,
     goTo,
     close,
     setContact,
@@ -105,7 +107,7 @@ export default function BookingDialog({
     setReturning,
     holdSlot,
     submit,
-  } = useBookingWizard({ services });
+  } = useBookingWizard({ services, barbers });
 
   if (!state.open) return null;
 
@@ -285,7 +287,11 @@ export default function BookingDialog({
               )}
 
               <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                {services.map((service, i) => {
+                {availableServices.length === 0 ? (
+                  <div className="col-span-full rounded-2xl border border-dashed border-white/15 px-4 py-5 text-center text-sm text-zinc-400">
+                    No hay servicios disponibles para este barbero. Cambia de barbero para continuar.
+                  </div>
+                ) : availableServices.map((service, i) => {
                   const selected = serviceId === service.id;
                   return (
                     <button
@@ -385,7 +391,11 @@ export default function BookingDialog({
 
               <span className="mt-4 block text-[11px] uppercase tracking-[0.2em] text-zinc-400">Barbero *</span>
               <div className="mt-1.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                {barbers.map((barber) => {
+                {availableBarbers.length === 0 ? (
+                  <div className="col-span-full rounded-2xl border border-dashed border-white/15 px-4 py-5 text-center text-sm text-zinc-400">
+                    No hay barberos disponibles para este servicio. Cambia de servicio para continuar.
+                  </div>
+                ) : availableBarbers.map((barber) => {
                   const selected = barberId === barber.id;
                   return (
                     <button

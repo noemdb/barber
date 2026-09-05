@@ -8,9 +8,10 @@ export type BookingService = {
   description: string | null;
   durationMin: number;
   priceCents: number;
+  barberIds: string[];
 };
 
-export type BookingBarber = { id: string; name: string; specialty: string | null };
+export type BookingBarber = { id: string; name: string; specialty: string | null; serviceIds: string[] };
 
 export type CreatedAppointment = {
   id: string;
@@ -138,6 +139,8 @@ type Action =
   | { type: "SET_STEP"; step: Step }
   | { type: "SELECT_SERVICE"; id: string }
   | { type: "SELECT_BARBER"; id: string }
+  | { type: "CLEAR_SERVICE" }
+  | { type: "CLEAR_BARBER" }
   | { type: "SET_CONTACT"; name: string; email: string; phone: string }
   | { type: "SET_DATE"; date: string }
   | { type: "SET_TIME"; time: string }
@@ -225,6 +228,10 @@ function reducer(state: State, action: Action): State {
       return { ...state, serviceId: action.id, step: nextAfterService(state) };
     case "SELECT_BARBER":
       return { ...state, barberId: action.id, step: nextAfterBarber(state) };
+    case "CLEAR_SERVICE":
+      return { ...state, serviceId: "" };
+    case "CLEAR_BARBER":
+      return { ...state, barberId: "" };
     case "SET_CONTACT":
       return { ...state, name: action.name, email: action.email, phone: action.phone };
     case "SET_DATE":
@@ -250,7 +257,7 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-export function useBookingWizard({ services }: { services: BookingService[] }) {
+export function useBookingWizard({ services, barbers }: { services: BookingService[]; barbers: BookingBarber[] }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<Element | null>(null);
@@ -374,6 +381,12 @@ export function useBookingWizard({ services }: { services: BookingService[] }) {
               : 6;
 
   const selectedService = services.find((s) => s.id === state.serviceId);
+  const availableServices = state.barberId
+    ? services.filter((service) => service.barberIds.includes(state.barberId))
+    : services;
+  const availableBarbers = state.serviceId
+    ? barbers.filter((barber) => barber.serviceIds.includes(state.serviceId))
+    : barbers;
 
   const goTo = useCallback((step: Step) => dispatch({ type: "SET_STEP", step }), []);
   const close = useCallback(() => dispatch({ type: "CLOSE" }), []);
@@ -381,8 +394,24 @@ export function useBookingWizard({ services }: { services: BookingService[] }) {
   const setDate = useCallback((date: string) => dispatch({ type: "SET_DATE", date }), []);
   const setTime = useCallback((time: string) => dispatch({ type: "SET_TIME", time }), []);
   const setActiveDay = useCallback((day: string) => dispatch({ type: "SET_ACTIVE_DAY", day }), []);
-  const selectService = useCallback((id: string) => dispatch({ type: "SELECT_SERVICE", id }), []);
-  const selectBarber = useCallback((id: string) => dispatch({ type: "SELECT_BARBER", id }), []);
+  const selectService = useCallback(
+    (id: string) => {
+      dispatch({ type: "SELECT_SERVICE", id });
+      if (state.barberId && !services.find((service) => service.id === id)?.barberIds.includes(state.barberId)) {
+        dispatch({ type: "CLEAR_BARBER" });
+      }
+    },
+    [services, state.barberId],
+  );
+  const selectBarber = useCallback(
+    (id: string) => {
+      dispatch({ type: "SELECT_BARBER", id });
+      if (state.serviceId && !barbers.find((barber) => barber.id === id)?.serviceIds.includes(state.serviceId)) {
+        dispatch({ type: "CLEAR_SERVICE" });
+      }
+    },
+    [barbers, state.serviceId],
+  );
   const setReturning = useCallback((returning: Returning | null) => dispatch({ type: "SET_RETURNING", returning }), []);
 
   // #2 — Buscar cliente existente por email para pre-rellenar nombre/teléfono.
@@ -417,7 +446,7 @@ export function useBookingWizard({ services }: { services: BookingService[] }) {
     fetch("/api/availability/hold", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ barberId: state.barberId, startsAt: startsAtIso, durationMin: dur, token: state.holdToken }),
+      body: JSON.stringify({ barberId: state.barberId, serviceId: state.serviceId, startsAt: startsAtIso, durationMin: dur, token: state.holdToken }),
     })
       .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
       .then(({ ok, j }) => {
@@ -490,6 +519,8 @@ export function useBookingWizard({ services }: { services: BookingService[] }) {
     activeSlots,
     stepIndex,
     selectedService,
+    availableServices,
+    availableBarbers,
     goTo,
     close,
     setContact,

@@ -95,6 +95,16 @@ export async function POST(request: Request) {
     }
     const startsAt = new Date(body.startsAt);
 
+    const assignment = await prisma.barberService.findUnique({
+      where: { barberId_serviceId: { barberId: body.barberId, serviceId: body.serviceId } },
+      include: {
+        barber: { select: { active: true } },
+        service: { select: { active: true, durationMin: true } },
+      },
+    });
+    if (!assignment?.barber.active) throw new DomainError(ErrorCodes.NOT_FOUND, "Barbero no encontrado", 404);
+    if (!assignment.service.active) throw new DomainError(ErrorCodes.NOT_FOUND, "Servicio no encontrado", 404);
+
     // Anti doble-reserva: si otro usuario tiene retenido (hold) el horario, rechazar.
     // Solo se aplica a la ruta del cliente (cuando envía holdToken); el admin no retiene.
     if (body.holdToken) {

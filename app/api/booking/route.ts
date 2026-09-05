@@ -51,11 +51,15 @@ export async function POST(request: Request) {
       throw new DomainError(ErrorCodes.RATE_LIMITED, "Demasiadas reservas para este correo. Inténtalo más tarde.", 429);
     }
 
-    const barber = await prisma.barber.findFirst({
-      where: { id: body.barberId, active: true },
-      select: { id: true },
+    const assignment = await prisma.barberService.findUnique({
+      where: { barberId_serviceId: { barberId: body.barberId, serviceId: body.serviceId } },
+      include: {
+        barber: { select: { active: true } },
+        service: { select: { active: true, durationMin: true } },
+      },
     });
-    if (!barber) throw new DomainError(ErrorCodes.NOT_FOUND, "Barbero no encontrado", 404);
+    if (!assignment?.barber.active) throw new DomainError(ErrorCodes.NOT_FOUND, "Barbero no encontrado", 404);
+    if (!assignment.service.active) throw new DomainError(ErrorCodes.NOT_FOUND, "Servicio no encontrado", 404);
 
     const phone = body.phone ?? null;
     let client = await prisma.client.findFirst({ where: { email } });
@@ -71,12 +75,7 @@ export async function POST(request: Request) {
     }
 
     const startsAt = new Date(body.startsAt);
-    const service = await prisma.service.findFirst({
-      where: { id: body.serviceId, active: true },
-      select: { durationMin: true },
-    });
-    if (!service) throw new DomainError(ErrorCodes.NOT_FOUND, "Servicio no encontrado", 404);
-    const endsAt = new Date(startsAt.getTime() + service.durationMin * 60_000);
+    const endsAt = new Date(startsAt.getTime() + assignment.service.durationMin * 60_000);
 
     // Anti doble-reserva: si otro usuario tiene retenido (hold) el horario, rechazar.
     await assertNoConflictHold(body.barberId, startsAt, endsAt, body.holdToken);

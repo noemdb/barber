@@ -38,6 +38,7 @@ export type BinnacleEntryInput = {
 const allowedAuditFieldsByModel: Record<string, string[]> = {
   User: ["id", "name", "email", "role", "active", "createdAt", "updatedAt"],
   Barber: ["id", "name", "phone", "email", "specialty", "active", "avatar", "createdAt", "updatedAt"],
+  BarberService: ["barberId", "serviceId"],
   Client: ["id", "name", "phone", "email", "notes", "active", "createdAt", "updatedAt"],
   Service: ["id", "name", "description", "durationMin", "priceCents", "active", "createdAt", "updatedAt"],
   Appointment: ["id", "startsAt", "endsAt", "status", "notes", "priceCents", "createdAt", "updatedAt"],
