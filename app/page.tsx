@@ -42,7 +42,12 @@ function getSiteUrl(): string {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await prisma.businessSettings.findFirst();
+  let settings: Awaited<ReturnType<typeof prisma.businessSettings.findFirst>> = null;
+  try {
+    settings = await prisma.businessSettings.findFirst();
+  } catch {
+    settings = null;
+  }
 
   const siteUrl = getSiteUrl();
   const title = settings?.businessName ?? "BarberService";
@@ -95,19 +100,31 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 }
 
 export default async function Home() {
-  const settings = await prisma.businessSettings.findFirst();
-  const businessId = settings?.id ?? "settings";
-  const [services, barbers, businessHours, testimonials, completedAppointments, assignments] = await Promise.all([
-    prisma.service.findMany({ where: { active: true }, orderBy: { priceCents: "asc" } }),
-    prisma.barber.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
-    prisma.businessHour.findMany({ where: { businessId }, orderBy: { dayOfWeek: "asc" } }),
-    prisma.testimonial.findMany({ where: { businessId }, orderBy: { order: "asc" } }),
-    prisma.appointment.count({ where: { status: "COMPLETED" } }),
-    prisma.barberService.findMany({
-      where: { barber: { active: true }, service: { active: true } },
-      select: { barberId: true, serviceId: true },
-    }),
-  ]);
+  let settings: Awaited<ReturnType<typeof prisma.businessSettings.findFirst>> = null;
+  let services: Awaited<ReturnType<typeof prisma.service.findMany>> = [];
+  let barbers: Awaited<ReturnType<typeof prisma.barber.findMany>> = [];
+  let businessHours: Awaited<ReturnType<typeof prisma.businessHour.findMany>> = [];
+  let testimonials: Awaited<ReturnType<typeof prisma.testimonial.findMany>> = [];
+  let completedAppointments = 0;
+  let assignments: Awaited<ReturnType<typeof prisma.barberService.findMany>> = [];
+  let businessId = "settings";
+  try {
+    settings = await prisma.businessSettings.findFirst();
+    businessId = settings?.id ?? "settings";
+    [services, barbers, businessHours, testimonials, completedAppointments, assignments] = await Promise.all([
+      prisma.service.findMany({ where: { active: true }, orderBy: { priceCents: "asc" } }),
+      prisma.barber.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+      prisma.businessHour.findMany({ where: { businessId }, orderBy: { dayOfWeek: "asc" } }),
+      prisma.testimonial.findMany({ where: { businessId }, orderBy: { order: "asc" } }),
+      prisma.appointment.count({ where: { status: "COMPLETED" } }),
+      prisma.barberService.findMany({
+        where: { barber: { active: true }, service: { active: true } },
+        select: { barberId: true, serviceId: true },
+      }),
+    ]);
+  } catch {
+    // Build sin DB (Vercel sin DATABASE_URL): renderiza fallback vacío
+  }
 
   const serviceIdsByBarber = new Map<string, string[]>();
   const barberIdsByService = new Map<string, string[]>();
@@ -121,10 +138,15 @@ export default async function Home() {
   const businessName = settings?.businessName ?? "BarberService";
   const currency = settings?.currency ?? "USD";
 
-  const palette =
-    (settings?.paletteSlug
-      ? await prisma.colorPalette.findUnique({ where: { slug: settings.paletteSlug } })
-      : null) ?? (await prisma.colorPalette.findFirst({ where: { isDefault: true }, orderBy: { order: "asc" } }));
+  let palette: Awaited<ReturnType<typeof prisma.colorPalette.findFirst>> = null;
+  try {
+    palette =
+      (settings?.paletteSlug
+        ? await prisma.colorPalette.findUnique({ where: { slug: settings.paletteSlug } })
+        : null) ?? (await prisma.colorPalette.findFirst({ where: { isDefault: true }, orderBy: { order: "asc" } }));
+  } catch {
+    palette = null;
+  }
 
   const accentStyle: CSSProperties | undefined = palette
     ? ({

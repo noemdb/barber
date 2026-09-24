@@ -16,7 +16,7 @@ Tu misión es evolucionar y mantener **BarberService**, una plataforma web de ge
 * Prisma ORM 7.x
 * PostgreSQL sobre Neon.tech
 * Vercel
-* Route Handlers / Server Actions cuando sean apropiados
+* Route Handlers / Server Actions cuando sean apropiados (proxy)
 * Autenticación basada en sesiones seguras mediante cookies `httpOnly`
 * url template: https://barber-production-f7f6.up.railway.app/
 

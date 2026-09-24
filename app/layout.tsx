@@ -19,7 +19,12 @@ const oswald = Oswald({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await prisma.businessSettings.findFirst();
+  let settings: { businessName?: string | null; faviconUrl?: string | null } | null = null;
+  try {
+    settings = await prisma.businessSettings.findFirst();
+  } catch {
+    settings = null;
+  }
   return {
     title: settings?.businessName ?? "BarberService",
     description: "Gestión integral de barbería",
